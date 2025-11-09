@@ -1,0 +1,15 @@
+# Node modules
+frontend/investo-frontend/node_modules/
+
+# Django virtual environment
+backend/venv/
+
+# Python cache
+*.pyc
+__pycache__/
+
+# React build files
+frontend/investo-frontend/build/
+
+# Environment variables
+.env
