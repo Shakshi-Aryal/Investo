@@ -4,9 +4,10 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.conf import settings
 
+
 def send_verification_email(user):
     """
-    Send email verification link to user.
+    Sends email verification link to user's email
     """
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
@@ -15,14 +16,14 @@ def send_verification_email(user):
 
     mail_subject = "Verify your Investo account"
     message = f"""
-Hi {user.username},
+    Hi {user.username},
 
-Please click the link below to verify your Investo account:
+    Please click the link below to verify your email:
 
-{verification_link}
+    {verification_link}
 
-If you did not create this account, ignore this email.
-"""
+    If you did not create this account, ignore this email.
+    """
 
     email = EmailMessage(mail_subject, message, settings.EMAIL_HOST_USER, [user.email])
     email.send()
