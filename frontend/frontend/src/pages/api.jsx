@@ -1,12 +1,30 @@
-import axios from "axios";
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
+import Glossary from "./pages/Glossary";
 
-const API_URL = "http://127.0.0.1:8000/api"; // Update if your Django API has a different URL
+// Optional: API functions using axios
+import { registerUser, loginUser } from "./services/api"; // adjust path if needed
 
+function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* Authentication Routes */}
+        <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-export const registerUser = async (userData) => {
-  return await axios.post(`${API_URL}/register/`, userData);
-};
+        {/* Protected Routes */}
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/glossary" element={<Glossary />} />
+      </Routes>
+    </Router>
+  );
+}
 
-export const loginUser = async (userData) => {
-  return await axios.post(`${API_URL}/login/`, userData);
-};
+export default App;
