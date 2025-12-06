@@ -3,8 +3,9 @@ import App from "./App";
 import Login from "./pages/Login";
 import PasswordReset from "./pages/PasswordReset";
 import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard"; 
-import VerifyEmail from "./pages/VerifyEmail"; // ✅ import new page
+import Dashboard from "./pages/Dashboard";
+import VerifyEmail from "./pages/VerifyEmail";
+import Glossary from "./pages/Glossary"; // ✅ new page
 
 export default function AppRoutes() {
   return (
@@ -23,9 +24,12 @@ export default function AppRoutes() {
         <Route path="/landing" element={<App />} />
 
         {/* Dashboard */}
-        <Route path="/dashboard" element={<Dashboard />} /> 
+        <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* ✅ Email Verification Route */}
+        {/* Glossary Page */}
+        <Route path="/glossary" element={<Glossary />} />
+
+        {/* Email Verification Route */}
         <Route path="/verify-email/:uid/:token" element={<VerifyEmail />} />
 
       </Routes>
