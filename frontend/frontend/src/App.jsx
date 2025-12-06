@@ -5,7 +5,8 @@ import PasswordReset from "./pages/PasswordReset";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import VerifyEmail from "./pages/VerifyEmail";
-import Glossary from "./pages/Glossary"; // ✅ new page
+import Glossary from "./pages/Glossary"; 
+import Profile from "./pages/Profile"; // ✅ import Profile page
 
 export default function AppRoutes() {
   return (
@@ -25,6 +26,9 @@ export default function AppRoutes() {
 
         {/* Dashboard */}
         <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* Profile Page */}
+        <Route path="/profile" element={<Profile />} />  {/*  added route */}
 
         {/* Glossary Page */}
         <Route path="/glossary" element={<Glossary />} />
