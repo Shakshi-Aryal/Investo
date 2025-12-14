@@ -5,11 +5,13 @@ import loginimage from "../assets/loginpage.jpg";
 import googlelogo from "../assets/googlelogo.png";
 import InputField from "../components/InputField";
 import NormalButton from "../components/NormalButton";
+import Spinner from "../components/Spinner"; // ✅ Import spinner
 
 function Register() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
+  const [loading, setLoading] = useState(false); // ✅ Loading state
 
   const [formData, setFormData] = useState({
     username: "",
@@ -29,9 +31,11 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
+    setLoading(true);
 
     if (formData.password !== formData.confirmPassword) {
       setMessage("Passwords do not match!");
+      setLoading(false);
       return;
     }
 
@@ -39,6 +43,7 @@ function Register() {
     delete payload.confirmPassword;
 
     try {
+      // Fire-and-forget to backend email sending for faster UX
       const response = await fetch("http://localhost:8000/api/register/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,18 +53,21 @@ function Register() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(
-          typeof data === "object"
-            ? Object.values(data).flat().join(" ")
-            : data.detail || "Something went wrong"
-        );
+        let errorMsg = "";
+        if (typeof data === "object") {
+          errorMsg = Object.values(data).flat().join(" ");
+        } else {
+          errorMsg = data.detail || "Something went wrong";
+        }
+        setMessage(errorMsg);
       } else {
-        // ✅ Instead of redirect, show verification message
         setIsRegistered(true);
-        setMessage("Registration successful! Check your email to verify your account.");
+        setMessage("✅ Registration successful! Check your email to verify your account.");
       }
     } catch {
       setMessage("Failed to connect to the server");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -108,7 +116,7 @@ function Register() {
 
           {!isRegistered ? (
             <form onSubmit={handleSubmit} className="w-full max-w-sm mt-4 space-y-4 bg-[#1A0B0B] p-6 rounded-lg shadow-lg">
-              {message && <p className="text-red-500">{message}</p>}
+              {message && <p className="text-sm text-red-500">{message}</p>}
 
               <InputField fieldtype="text" name="username" value={formData.username} onChange={handleChange} placeholder="Enter username" label="Username" />
               <InputField fieldtype="email" name="email" value={formData.email} onChange={handleChange} placeholder="Enter email" label="Email" />
@@ -118,12 +126,27 @@ function Register() {
               <InputField fieldtype="password" name="password" value={formData.password} onChange={handleChange} placeholder="Enter password" label="Password" />
               <InputField fieldtype="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="Confirm password" label="Confirm Password" />
 
-              <NormalButton btype="submit" text="Register" bgColor="#D90A14" textColor="white" hoverBorder="#D90A14" hoverBg="#0F0505" hoverText="#D90A14" bColor="#D90A14" />
+              <NormalButton
+                btype="submit"
+                text={loading ? <Spinner size={5} color="white" /> : "Register"} // ✅ Spinner here
+                bgColor="#D90A14"
+                textColor="white"
+                hoverBorder="#D90A14"
+                hoverBg="#0F0505"
+                hoverText="#D90A14"
+                bColor="#D90A14"
+                disabled={loading}
+              />
             </form>
           ) : (
             <div className="w-full max-w-sm mt-4 bg-[#1A0B0B] p-6 rounded-lg shadow-lg text-center">
               <p className="text-green-500">{message}</p>
-              <p className="mt-4">After verification, you can <span className="text-[#D90A14] cursor-pointer font-bold" onClick={() => navigate("/login")}>Login</span>.</p>
+              <p className="mt-4">
+                After verification, you can{" "}
+                <span className="text-[#D90A14] cursor-pointer font-bold" onClick={() => navigate("/login")}>
+                  Login
+                </span>.
+              </p>
             </div>
           )}
 

@@ -5,8 +5,10 @@ import PasswordReset from "./pages/PasswordReset";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import VerifyEmail from "./pages/VerifyEmail";
-import Glossary from "./pages/Glossary"; 
-import Profile from "./pages/Profile"; // ✅ import Profile page
+import Glossary from "./pages/Glossary";
+import Profile from "./pages/Profile";
+import StockCharts from "./pages/StockCharts"; 
+import ExpenseTracker from "./pages/ExpenseTracker"; // ✅ NEW IMPORT
 
 export default function AppRoutes() {
   return (
@@ -28,12 +30,18 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
 
         {/* Profile Page */}
-        <Route path="/profile" element={<Profile />} />  {/*  added route */}
+        <Route path="/profile" element={<Profile />} />
+
+        {/* Stock Charts Page */}
+        <Route path="/stock-charts" element={<StockCharts />} />
 
         {/* Glossary Page */}
         <Route path="/glossary" element={<Glossary />} />
 
-        {/* Email Verification Route */}
+        {/* Expense Tracker Page */}
+        <Route path="/expense-tracker" element={<ExpenseTracker />} /> {/* ✅ NEW ROUTE */}
+
+        {/* Email Verification */}
         <Route path="/verify-email/:uid/:token" element={<VerifyEmail />} />
 
       </Routes>
