@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes
+from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -103,6 +103,71 @@ def verify_email(request, uidb64, token):
     user.is_active = True
     user.save()
     return Response({"message": "Email verified successfully!"})
+
+
+# ----------------------------
+# FORGOT PASSWORD
+# ----------------------------
+@api_view(["POST"])
+def forgot_password(request):
+    email = request.data.get("email")
+
+    if not email:
+        return Response({"error": "Email is required"}, status=400)
+
+    user = User.objects.filter(email=email).first()
+
+    # Always return success (security reason)
+    if not user:
+        return Response(
+            {"message": "If the email exists, a reset link has been sent."},
+            status=200
+        )
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+
+    reset_url = f"http://localhost:5173/reset-password/{uid}/{token}/"
+
+    send_mail(
+        subject="Reset your Investo password",
+        message=f"Hi {user.username},\n\nClick the link to reset your password:\n{reset_url}",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+    )
+
+    return Response(
+        {"message": "If the email exists, a reset link has been sent."},
+        status=200
+    )
+
+
+# ----------------------------
+# RESET PASSWORD
+# ----------------------------
+@api_view(["POST"])
+def reset_password(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except:
+        return Response({"error": "Invalid reset link"}, status=400)
+
+    if not default_token_generator.check_token(user, token):
+        return Response({"error": "Reset link expired or invalid"}, status=400)
+
+    password = request.data.get("password")
+
+    if not password or len(password) < 6:
+        return Response(
+            {"error": "Password must be at least 6 characters"},
+            status=400
+        )
+
+    user.set_password(password)
+    user.save()
+
+    return Response({"message": "Password reset successful"}, status=200)
 
 
 # ----------------------------

@@ -19,9 +19,7 @@ function Login() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // -----------------------------
-  // NORMAL LOGIN
-  // -----------------------------
+  // ----------------------------- NORMAL LOGIN -----------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
@@ -38,7 +36,8 @@ function Login() {
       if (!response.ok) {
         setMessage(data.error || "Invalid credentials");
       } else {
-        localStorage.setItem("jwt", data.access);
+        // ✅ Use consistent key for token
+        localStorage.setItem("access", data.access);
         setMessage("Login successful! Redirecting...");
         setTimeout(() => navigate("/dashboard"), 800);
       }
@@ -47,9 +46,7 @@ function Login() {
     }
   };
 
-  // -----------------------------
-  // GOOGLE LOGIN HANDLER
-  // -----------------------------
+  // ----------------------------- GOOGLE LOGIN -----------------------------
   const handleGoogleLogin = async (authCode) => {
     try {
       const response = await fetch("http://localhost:8000/api/google-login/", {
@@ -61,7 +58,7 @@ function Login() {
       const data = await response.json();
 
       if (response.ok && data.access) {
-        localStorage.setItem("jwt", data.access);
+        localStorage.setItem("access", data.access); // ✅ Use same key
         navigate("/dashboard");
       } else {
         setMessage(data.error || "Google login failed");
@@ -96,13 +93,7 @@ function Login() {
             className="w-full max-w-sm p-6 rounded-lg shadow-lg mt-4 space-y-4 bg-[#1A0B0B]"
           >
             {message && (
-              <p
-                className={
-                  message.includes("successful")
-                    ? "text-green-500"
-                    : "text-red-500"
-                }
-              >
+              <p className={message.includes("successful") ? "text-green-500" : "text-red-500"}>
                 {message}
               </p>
             )}
@@ -154,9 +145,7 @@ function Login() {
                 alt="Google logo"
                 className="w-6 h-6 mr-3 rounded-full object-cover"
               />
-              <span className="font-medium tracking-wide">
-                Continue with Google
-              </span>
+              <span className="font-medium tracking-wide">Continue with Google</span>
             </button>
           </div>
 
@@ -178,9 +167,7 @@ function Login() {
             className="w-full h-full object-cover opacity-40"
           />
           <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-            <h1 className="font-luckiest text-white text-3xl font-bold">
-              Investo
-            </h1>
+            <h1 className="font-luckiest text-white text-3xl font-bold">Investo</h1>
           </div>
         </div>
       </div>
