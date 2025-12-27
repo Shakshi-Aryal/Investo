@@ -26,6 +26,8 @@ INSTALLED_APPS = [
     # Your apps
     'accounts',
     'expenses',
+    'reminders',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -135,3 +137,13 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'investo000111@gmail.com'
 EMAIL_HOST_PASSWORD = 'mwrj nsfi ljlx fwql'  # Your Gmail App Password
 DEFAULT_FROM_EMAIL = 'Investo <investo000111@gmail.com>'
+
+
+# -------------------------
+# CELERY CONFIG
+# -------------------------
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
+CELERY_TIMEZONE = TIME_ZONE

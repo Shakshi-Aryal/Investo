@@ -1,0 +1,78 @@
+/* --------------------- Dark Calendar Theme --------------------- */
+.react-calendar {
+  width: 100%;
+  background: #1A0B0B;
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-family: inherit;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Navigation buttons & month name */
+.react-calendar__navigation {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.react-calendar__navigation button {
+  color: white;
+  background: transparent;
+  font-size: 16px;
+  border-radius: 6px;
+  padding: 6px 10px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.react-calendar__navigation button:hover {
+  background: #2a1212 !important; /* dark hover */
+  color: #f87171 !important;      /* soft red */
+}
+
+.react-calendar__navigation__label {
+  font-weight: 600;
+  color: #f87171; /* soft red month name */
+}
+
+/* Weekday headers */
+.react-calendar__month-view__weekdays {
+  text-align: center;
+  font-weight: 600;
+  color: #f87171;
+  margin-bottom: 6px;
+}
+
+/* Day tiles */
+.react-calendar__tile {
+  background: #1A0B0B !important; /* default dark tile */
+  color: #ffffff !important;      /* default text white */
+  border-radius: 8px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* Hover effect for enabled tiles only */
+.react-calendar__tile:enabled:hover {
+  background: #2a0d0d !important; /* darker hover */
+  color: #ffffff !important;      /* force text white */
+}
+
+/* Today highlight */
+.react-calendar__tile--now {
+  background: #3a1515 !important;
+  color: #ffffff !important;
+  border-radius: 8px;
+}
+
+/* Selected date */
+.react-calendar__tile--active {
+  background: #D90A14 !important; /* bright red */
+  color: #ffffff !important;
+  border-radius: 8px;
+}
+
+/* Disabled days */
+.react-calendar__tile:disabled {
+  color: #555 !important;
+}

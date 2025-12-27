@@ -22,12 +22,17 @@ function Dashboard() {
       description: "View Nepse stock candlestick charts",
       onClick: () => navigate("/stock-charts"),
     },
-
-    // ⭐ NEW CARD ADDED — EXPENSE TRACKER
     {
       title: "Expense Tracker",
       description: "Track your daily income and expenses",
       onClick: () => navigate("/expense-tracker"),
+    },
+
+    // ✅ NEW REMINDER CARD (ONLY ADDITION)
+    {
+      title: "Reminders",
+      description: "Set tasks and get email reminders on time",
+      onClick: () => navigate("/reminders"),
     },
   ];
 

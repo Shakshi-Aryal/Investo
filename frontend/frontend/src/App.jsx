@@ -2,15 +2,18 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import App from "./App";
 import Login from "./pages/Login";
-import ForgotPassword from "./components/ForgotPassword"; // ✅ Forgot Password page
-import ResetPassword from "./pages/ResetPassword"; // ✅ Reset Password page
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import VerifyEmail from "./pages/VerifyEmail";
 import Glossary from "./pages/Glossary";
 import Profile from "./pages/Profile";
-import StockCharts from "./pages/StockCharts"; 
-import ExpenseTracker from "./pages/ExpenseTracker"; 
+import StockCharts from "./pages/StockCharts";
+import ExpenseTracker from "./pages/ExpenseTracker";
+
+// ✅ ADD THIS IMPORT
+import ReminderCalendar from "./pages/ReminderCalendar";
 
 export default function AppRoutes() {
   return (
@@ -23,7 +26,7 @@ export default function AppRoutes() {
         {/* Register & Login Pages */}
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/pass" element={<ForgotPassword />} /> {/* ✅ Forgot Password */}
+        <Route path="/pass" element={<ForgotPassword />} />
 
         {/* Reset Password Page */}
         <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
@@ -45,6 +48,9 @@ export default function AppRoutes() {
 
         {/* Expense Tracker */}
         <Route path="/expense-tracker" element={<ExpenseTracker />} />
+
+        {/* ✅ REMINDER PAGE */}
+        <Route path="/reminders" element={<ReminderCalendar />} />
 
         {/* Email Verification */}
         <Route path="/verify-email/:uid/:token" element={<VerifyEmail />} />
