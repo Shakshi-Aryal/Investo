@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+const TOKEN_KEY = "jwt";
 
 function Profile() {
+  const navigate = useNavigate();
   const [userData, setUserData] = useState({
     username: "",
     first_name: "",
@@ -12,13 +16,12 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [editing, setEditing] = useState(false); // toggle edit mode
+  const [editing, setEditing] = useState(false);
 
-  // Fetch profile info on mount
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("jwt");
+        const token = localStorage.getItem(TOKEN_KEY);
         if (!token) {
           setError("You are not logged in.");
           setLoading(false);
@@ -57,7 +60,7 @@ function Profile() {
     setError("");
     setSuccess("");
     try {
-      const token = localStorage.getItem("jwt");
+      const token = localStorage.getItem(TOKEN_KEY);
       if (!token) {
         setError("You are not logged in.");
         return;
@@ -78,23 +81,31 @@ function Profile() {
       });
 
       setSuccess("Profile updated successfully!");
-      setEditing(false); // close edit card
+      setEditing(false);
     } catch (err) {
       console.error(err);
-      setError(
-        err.response?.data?.error || "Failed to update profile. Please try again."
-      );
+      setError(err.response?.data?.error || "Failed to update profile.");
     }
   };
 
   if (loading) return <p className="text-white p-6">Loading...</p>;
-  if (error && !editing) return <p className="text-red-500 p-6">{error}</p>;
+  if (error && !editing)
+    return (
+      <div className="text-white p-6">
+        <p className="text-red-500">{error}</p>
+        <button
+          onClick={() => navigate("/login")}
+          className="mt-4 bg-[#D90A14] p-2 rounded-md"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen w-full bg-[#0F0505] text-white p-6">
       <h1 className="text-4xl font-bold mb-8">Profile</h1>
 
-      {/* ------------------- Profile Display ------------------- */}
       {!editing && (
         <div className="bg-[#1A0B0B] p-6 rounded-xl shadow-lg w-full max-w-md flex flex-col gap-3">
           <p>
@@ -122,7 +133,6 @@ function Profile() {
         </div>
       )}
 
-      {/* ------------------- Edit Form ------------------- */}
       {editing && (
         <form
           className="bg-[#1A0B0B] p-6 rounded-xl shadow-lg w-full max-w-md flex flex-col gap-4"
@@ -131,60 +141,20 @@ function Profile() {
           {success && <p className="text-green-400">{success}</p>}
           {error && <p className="text-red-400">{error}</p>}
 
-          <div>
-            <label className="block text-gray-300 mb-1">Username</label>
-            <input
-              type="text"
-              name="username"
-              value={userData.username}
-              onChange={handleChange}
-              className="w-full p-2 rounded-md bg-[#0F0505] border border-gray-700 text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-300 mb-1">First Name</label>
-            <input
-              type="text"
-              name="first_name"
-              value={userData.first_name}
-              onChange={handleChange}
-              className="w-full p-2 rounded-md bg-[#0F0505] border border-gray-700 text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-300 mb-1">Last Name</label>
-            <input
-              type="text"
-              name="last_name"
-              value={userData.last_name}
-              onChange={handleChange}
-              className="w-full p-2 rounded-md bg-[#0F0505] border border-gray-700 text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-300 mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={userData.email}
-              onChange={handleChange}
-              className="w-full p-2 rounded-md bg-[#0F0505] border border-gray-700 text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-300 mb-1">Date of Birth</label>
-            <input
-              type="date"
-              name="date_of_birth"
-              value={userData.date_of_birth || ""}
-              onChange={handleChange}
-              className="w-full p-2 rounded-md bg-[#0F0505] border border-gray-700 text-white"
-            />
-          </div>
+          {["username", "first_name", "last_name", "email", "date_of_birth"].map(
+            (field) => (
+              <div key={field}>
+                <label className="block text-gray-300 mb-1">{field.replace("_", " ")}</label>
+                <input
+                  type={field === "date_of_birth" ? "date" : field === "email" ? "email" : "text"}
+                  name={field}
+                  value={userData[field] || ""}
+                  onChange={handleChange}
+                  className="w-full p-2 rounded-md bg-[#0F0505] border border-gray-700 text-white"
+                />
+              </div>
+            )
+          )}
 
           <div className="flex gap-4">
             <button

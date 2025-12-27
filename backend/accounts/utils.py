@@ -41,5 +41,5 @@ def send_verification_email(user):
         to=[user.email]
     )
 
-    # 🔥 Send asynchronously to avoid 3–5 sec delay
+    #  Send asynchronously to avoid 3–5 sec delay
     threading.Thread(target=_async_send, args=(email,)).start()

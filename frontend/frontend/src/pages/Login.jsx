@@ -6,6 +6,8 @@ import googlelogo from "../assets/googlelogo.png";
 import InputField from "../components/InputField";
 import NormalButton from "../components/NormalButton";
 
+const TOKEN_KEY = "jwt"; // ✅ Use the same key everywhere
+
 function Login() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
@@ -36,8 +38,7 @@ function Login() {
       if (!response.ok) {
         setMessage(data.error || "Invalid credentials");
       } else {
-        // ✅ Use consistent key for token
-        localStorage.setItem("access", data.access);
+        localStorage.setItem(TOKEN_KEY, data.access); // ✅ store under "jwt"
         setMessage("Login successful! Redirecting...");
         setTimeout(() => navigate("/dashboard"), 800);
       }
@@ -58,7 +59,7 @@ function Login() {
       const data = await response.json();
 
       if (response.ok && data.access) {
-        localStorage.setItem("access", data.access); // ✅ Use same key
+        localStorage.setItem(TOKEN_KEY, data.access); // ✅ consistent key
         navigate("/dashboard");
       } else {
         setMessage(data.error || "Google login failed");
