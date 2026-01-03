@@ -17,6 +17,8 @@
     "chart.js": "^4.5.1",
     "chartjs-chart-financial": "^0.2.1",
     "framer-motion": "^12.10.5",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.485.0",
     "react": "^19.0.0",
     "react-calendar": "^6.0.0",
