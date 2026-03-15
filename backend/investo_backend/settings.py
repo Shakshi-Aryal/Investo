@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'expenses',
     'reminders',
     'django_celery_beat',
+    'portfolio_management',
 ]
 
 MIDDLEWARE = [

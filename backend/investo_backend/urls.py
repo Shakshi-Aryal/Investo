@@ -7,5 +7,8 @@ urlpatterns = [
     path('api/', include('accounts.urls')),
     path("api/expenses/", include("expenses.urls")),
     path("api/reminders/", include("reminders.urls")),
+# API ROUTE
+     path('api/', include('portfolio_management.urls')),
 
+    
 ]

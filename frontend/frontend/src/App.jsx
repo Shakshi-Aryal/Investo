@@ -12,8 +12,14 @@ import Profile from "./pages/Profile";
 import StockCharts from "./pages/StockCharts";
 import ExpenseTracker from "./pages/ExpenseTracker";
 
-// ✅ ADD THIS IMPORT
+// Existing
 import ReminderCalendar from "./pages/ReminderCalendar";
+
+// NEW: NEWS PORTAL
+import NewsPortal from "./pages/NewsPortal";
+
+// NEW: PORTFOLIO MANAGEMENT
+import PortfolioManagement from "./pages/PortfolioManagement";
 
 export default function AppRoutes() {
   return (
@@ -28,16 +34,16 @@ export default function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/pass" element={<ForgotPassword />} />
 
-        {/* Reset Password Page */}
+        {/* Reset Password */}
         <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
 
-        {/* Landing Page */}
+        {/* Landing */}
         <Route path="/landing" element={<App />} />
 
         {/* Dashboard */}
         <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* Profile Page */}
+        {/* Profile */}
         <Route path="/profile" element={<Profile />} />
 
         {/* Stock Charts */}
@@ -49,8 +55,15 @@ export default function AppRoutes() {
         {/* Expense Tracker */}
         <Route path="/expense-tracker" element={<ExpenseTracker />} />
 
-        {/* ✅ REMINDER PAGE */}
+        {/* PORTFOLIO MANAGEMENT */}
+        <Route path="/portfolio" element={<PortfolioManagement />} />
+        <Route path="/portfolio-management" element={<PortfolioManagement />} />
+
+        {/* Reminders */}
         <Route path="/reminders" element={<ReminderCalendar />} />
+
+        {/* NEWS & MARKETS */}
+        <Route path="/news" element={<NewsPortal />} />
 
         {/* Email Verification */}
         <Route path="/verify-email/:uid/:token" element={<VerifyEmail />} />

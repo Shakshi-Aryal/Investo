@@ -28,11 +28,24 @@ function Dashboard() {
       onClick: () => navigate("/expense-tracker"),
     },
 
-    // ✅ NEW REMINDER CARD (ONLY ADDITION)
+    // 🔥 NEW CARD — PORTFOLIO MANAGEMENT
+    {
+      title: "Portfolio Management",
+      description: "Track your investments, ROI and portfolio performance",
+      onClick: () => navigate("/portfolio"),
+    },
+
     {
       title: "Reminders",
       description: "Set tasks and get email reminders on time",
       onClick: () => navigate("/reminders"),
+    },
+
+    // 🔥 NEWS PORTAL
+    {
+      title: "News & Markets",
+      description: "Gold, forex rates, economy & finance news",
+      onClick: () => navigate("/news"),
     },
   ];
 
