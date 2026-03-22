@@ -10,5 +10,6 @@ urlpatterns = [
 # API ROUTE
      path('api/', include('portfolio_management.urls')),
 
-    
+    path('api/', include('stocks.urls')),  # IMPORTANT
+
 ]

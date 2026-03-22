@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'reminders',
     'django_celery_beat',
     'portfolio_management',
+    'stocks',
 ]
 
 MIDDLEWARE = [
