@@ -35,7 +35,7 @@ export default function AppRoutes() {
         <Route path="/pass" element={<ForgotPassword />} />
 
         {/* Reset Password */}
-        <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
+        <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
 
         {/* Landing */}
         <Route path="/landing" element={<App />} />

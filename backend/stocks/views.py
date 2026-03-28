@@ -14,10 +14,9 @@ def safe_fetch_and_store(api_call, *args, **kwargs):
         print(f"API Error: {e}")
         return None
 
-# 🔹 Main Stocks View: Syncs API data into local Database
+# 🔹 Main Stocks View
 def stocks(request):
     live_data = safe_fetch_and_store(nepse.get_stocks)
-    
     if live_data:
         for item in live_data:
             Stock.objects.update_or_create(
@@ -27,50 +26,63 @@ def stocks(request):
                     'percentage_change': item.get('percentageChange', 0.0)
                 }
             )
-    
-    # Always serve from DB so it works offline/closed market
     db_stocks = list(Stock.objects.all().values('symbol', 'last_traded_price', 'percentage_change'))
     return JsonResponse(db_stocks, safe=False)
 
 # 🔹 Reversible Watchlist Toggle
 def toggle_watchlist(request):
     symbol = request.GET.get("symbol", "").upper()
-    if not symbol:
-        return JsonResponse({"error": "No symbol provided"}, status=400)
-    
+    if not symbol: return JsonResponse({"error": "No symbol"}, status=400)
     obj, created = Watchlist.objects.get_or_create(symbol=symbol)
     if not created:
-        # If it already existed, we remove it (the "Reversible" part)
         obj.delete()
         return JsonResponse({"status": "removed"})
     return JsonResponse({"status": "added"})
 
-# 🔹 Get items currently in Watchlist with latest prices
 def get_watchlist(request):
     watch_symbols = Watchlist.objects.values_list('symbol', flat=True)
     data = list(Stock.objects.filter(symbol__in=watch_symbols).values())
     return JsonResponse(data, safe=False)
 
-# 🔹 Market Status
 def status(request):
-    data = safe_fetch_and_store(nepse.get_market_status) or {"isOpen": False, "note": "Showing Offline Data"}
+    data = safe_fetch_and_store(nepse.get_market_status) or {"isOpen": False, "note": "Offline"}
     return JsonResponse(data, safe=False)
 
-# 🔹 Top Gainers/Losers
+# 🔹 FIXED: Mapping Top Gainers
 def gainers(request):
-    return JsonResponse(safe_fetch_and_store(nepse.get_top_gainers, limit=5) or [], safe=False)
+    raw_data = safe_fetch_and_store(nepse.get_top_gainers, limit=5) or []
+    standardized = []
+    for item in raw_data:
+        standardized.append({
+            "symbol": item.get("symbol") or item.get("stockSymbol"),
+            "percentageChange": item.get("percentageChange") or item.get("pointChange") or 0
+        })
+    return JsonResponse(standardized, safe=False)
 
+# 🔹 FIXED: Mapping Top Losers
 def losers(request):
-    return JsonResponse(safe_fetch_and_store(nepse.get_top_losers, limit=5) or [], safe=False)
+    raw_data = safe_fetch_and_store(nepse.get_top_losers, limit=5) or []
+    standardized = []
+    for item in raw_data:
+        standardized.append({
+            "symbol": item.get("symbol") or item.get("stockSymbol"),
+            "percentageChange": item.get("percentageChange") or item.get("pointChange") or 0
+        })
+    return JsonResponse(standardized, safe=False)
 
-# 🔹 Chart Data
+# 🔹 FIXED: Mapping Chart Data
 def chart(request):
     symbol = request.GET.get("symbol", "NABIL")
     today = date.today().strftime("%Y-%m-%d")
-    data = safe_fetch_and_store(nepse.get_historical_chart, symbol, start_date="2025-01-01", end_date=today) or []
-    return JsonResponse(data, safe=False)
+    raw_chart = safe_fetch_and_store(nepse.get_historical_chart, symbol, start_date="2025-01-01", end_date=today) or []
+    
+    # Handle cases where API returns a dict instead of a list
+    if isinstance(raw_chart, dict):
+        raw_chart = raw_chart.get('graphData') or raw_chart.get('data') or []
+        
+    return JsonResponse(raw_chart, safe=False)
 
-# 🔹 Standard Pass-throughs
+# Standard Pass-throughs
 def summary(request): return JsonResponse(safe_fetch_and_store(nepse.get_market_summary) or {}, safe=False)
 def sectors(request): return JsonResponse(safe_fetch_and_store(nepse.get_sub_indices) or [], safe=False)
 def news(request): return JsonResponse(safe_fetch_and_store(nepse.get_company_news) or [], safe=False)
