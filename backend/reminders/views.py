@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from django.core.mail import send_mail
 from django.conf import settings
+from datetime import datetime
 from .models import Reminder
 from .serializers import ReminderSerializer
 
@@ -18,22 +18,30 @@ class ReminderListCreate(APIView):
     def post(self, request):
         serializer = ReminderSerializer(data=request.data)
         if serializer.is_valid():
-            reminder = serializer.save(user=request.user)
+            # 1. Extract validated data
+            reminder_date = serializer.validated_data.get('date')
+            
+            # 2. Get current server time (Nepal Time based on your settings)
+            now = datetime.now()
+            current_date = now.date()
 
-            # --- SEND EMAIL IF EMAIL_NOTIFY IS TRUE ---
-            if reminder.email_notify and request.user.email:
-                try:
-                    send_mail(
-                        subject=f"Reminder: {reminder.title}",
-                        message=f"{reminder.description or 'No description'}\nTime: {reminder.time}\nDate: {reminder.date}",
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[request.user.email],
-                        fail_silently=False,
-                    )
-                except Exception as e:
-                    print("Email sending failed:", e)  # You can log this properly
+            # 3. DATE CORRECTION LOGIC
+            # If the frontend sends a date from the past (usually because of UTC shifts),
+            # but the user is clearly setting a reminder for 'today' or 'the future',
+            # we force it to the current server date.
+            if reminder_date < current_date:
+                # We assume if they are posting at 2:00 AM, they mean 2:00 AM today.
+                reminder_date = current_date
 
+            # 4. Save with the corrected date
+            reminder = serializer.save(
+                user=request.user, 
+                date=reminder_date,
+                is_completed=False  # Ensure new reminders are always active
+            )
+            
             return Response(ReminderSerializer(reminder).data, status=201)
+        
         return Response(serializer.errors, status=400)
 
 
@@ -48,13 +56,12 @@ class ReminderDetail(APIView):
 
         serializer = ReminderSerializer(reminder, data=request.data, partial=True)
         if serializer.is_valid():
-            updated_reminder = serializer.save()
-
-            # --- OPTIONAL: SEND EMAIL IF TIME CHANGED AND EMAIL_NOTIFY IS TRUE ---
-            if updated_reminder.email_notify and request.user.email:
-                # You can optionally send a notification here too
-                pass
-
+            # Apply same logic for updates if date is provided
+            new_date = serializer.validated_data.get('date', reminder.date)
+            if new_date < datetime.now().date():
+                new_date = datetime.now().date()
+                
+            updated_reminder = serializer.save(date=new_date)
             return Response(ReminderSerializer(updated_reminder).data)
         return Response(serializer.errors, status=400)
 

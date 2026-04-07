@@ -1,6 +1,7 @@
+from datetime import datetime
 from celery import shared_task
 from django.core.mail import send_mail
-from django.utils import timezone
+from django.conf import settings
 from .models import Reminder
 import logging
 
@@ -8,32 +9,39 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def send_reminder_emails():
-    now = timezone.localtime()
-    logger.info(f"Checking reminders at {now}")
+    # Since USE_TZ = False, datetime.now() gives local server time
+    now = datetime.now()
+    current_date = now.date()
+    
+    logger.info(f"--- SCANNING DB: {current_date} at {now.hour:02d}:{now.minute:02d} ---")
 
+    # Filter for exact date and time (matching hour/minute)
     reminders = Reminder.objects.filter(
-        date=now.date(),
+        date=current_date,
         time__hour=now.hour,
         time__minute=now.minute,
         email_notify=True,
         is_completed=False
     )
-    logger.info(f"Found {reminders.count()} reminders")
+    
+    if reminders.exists():
+        logger.info(f"MATCH FOUND: Found {reminders.count()} reminders.")
 
     for r in reminders:
         try:
+            # Fallback to username if email field is empty in auth_user
+            recipient = r.user.email or r.user.username
+            
             send_mail(
-                subject=f"⏰ Reminder: {r.title}",
-                message=(
-                    f"Hi {r.user.first_name or r.user.username},\n\n"
-                    f"It's time to do:\n"
-                    f"{r.title}\n\n"
-                    f"{r.description}"
-                ),
-                from_email=None,  # uses DEFAULT_FROM_EMAIL in settings.py
-                recipient_list=[r.user.email],
+                subject=f"⏰ Investo Reminder: {r.title}",
+                message=f"Hi {r.user.first_name or r.user.username},\n\nIt's time for: {r.title}\n{r.description}\n\nBest, Investo Team",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[recipient],
                 fail_silently=False,
             )
-            logger.info(f"Email sent for {r.title} to {r.user.email}")
+            
+            r.is_completed = True 
+            r.save()
+            logger.info(f"SUCCESS: Email sent to {recipient}")
         except Exception as e:
-            logger.error(f"Failed to send email for {r.title}: {e}")
+            logger.error(f"MAIL ERROR: {e}")

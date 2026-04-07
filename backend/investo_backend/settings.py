@@ -22,12 +22,12 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'django_celery_beat',
 
     # Your apps
     'accounts',
     'expenses',
     'reminders',
-    'django_celery_beat',
     'portfolio_management',
     'stocks',
 ]
@@ -52,6 +52,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug', # Added for Admin
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -77,22 +78,12 @@ DATABASES = {
 }
 
 # --------------------------
-# Password validation
-# --------------------------
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
-
-# --------------------------
 # Internationalization
 # --------------------------
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kathmandu' # Set to your local time
 USE_I18N = True
-USE_TZ = True
+USE_TZ = False
 
 # --------------------------
 # Static files
@@ -129,17 +120,15 @@ GOOGLE_CLIENT_ID = "716900923722-2570apf8khecitbmi9eudofohdrhbsfl.apps.googleuse
 GOOGLE_CLIENT_SECRET = "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"
 
 # --------------------------
-# Email settings (verification emails)
+# Email settings
 # --------------------------
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-
 EMAIL_HOST_USER = 'investo000111@gmail.com'
-EMAIL_HOST_PASSWORD = 'mwrj nsfi ljlx fwql'  # Your Gmail App Password
+EMAIL_HOST_PASSWORD = 'mwrj nsfi ljlx fwql'
 DEFAULT_FROM_EMAIL = 'Investo <investo000111@gmail.com>'
-
 
 # -------------------------
 # CELERY CONFIG
@@ -147,5 +136,5 @@ DEFAULT_FROM_EMAIL = 'Investo <investo000111@gmail.com>'
 CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = False # Use local time for scheduling

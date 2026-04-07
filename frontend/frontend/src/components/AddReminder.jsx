@@ -1,6 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function AddReminder({ selectedDate, onAdded }) {
+  // --- THEME SYNC LOGIC ---
+  const [isDarkMode, setIsDarkMode] = useState(() => 
+    JSON.parse(localStorage.getItem("theme") || "true")
+  );
+
+  useEffect(() => {
+    const handleSync = () => {
+      const storedTheme = JSON.parse(localStorage.getItem("theme") || "true");
+      setIsDarkMode(storedTheme);
+    };
+    window.addEventListener("storage", handleSync);
+    return () => window.removeEventListener("storage", handleSync);
+  }, []);
+
   const getCurrentTime = () => {
     const now = new Date();
     const hours = now.getHours().toString().padStart(2, "0");
@@ -11,7 +25,7 @@ export default function AddReminder({ selectedDate, onAdded }) {
   const [data, setData] = useState({
     title: "",
     description: "",
-    time: getCurrentTime(), // default to current time
+    time: getCurrentTime(),
     email_notify: true,
   });
 
@@ -37,18 +51,52 @@ export default function AddReminder({ selectedDate, onAdded }) {
   };
 
   return (
-    <div className="bg-[#1A0B0B] p-6 rounded-xl shadow-lg">
-      <h2 className="text-xl mb-4 text-[#D90A14]">Add Reminder</h2>
+    /* REPLACED: Tailwind hex classes with style object using CSS variables.
+       This ensures the card background, borders, and text follow the 'Investo' theme.
+    */
+    <div style={{
+      background: 'var(--card-bg)',
+      padding: '24px',
+      borderRadius: '24px',
+      border: '1px solid var(--card-border)',
+      backdropFilter: 'blur(10px)',
+      color: 'inherit'
+    }}>
+      <h2 style={{ 
+        fontFamily: 'Syne', 
+        fontSize: '20px', 
+        marginBottom: '16px', 
+        color: 'var(--accent)' 
+      }}>Add Reminder</h2>
 
       <input
-        className="w-full p-2 mb-3 rounded bg-[#0F0505] border border-gray-700 text-white"
+        style={{
+          width: '100%',
+          padding: '12px',
+          marginBottom: '12px',
+          borderRadius: '12px',
+          background: 'var(--input-bg)',
+          border: '1px solid var(--card-border)',
+          color: 'inherit',
+          outline: 'none'
+        }}
         placeholder="Title"
         value={data.title}
         onChange={e => setData({ ...data, title: e.target.value })}
       />
 
       <textarea
-        className="w-full p-2 mb-3 rounded bg-[#0F0505] border border-gray-700 text-white"
+        style={{
+          width: '100%',
+          padding: '12px',
+          marginBottom: '12px',
+          borderRadius: '12px',
+          background: 'var(--input-bg)',
+          border: '1px solid var(--card-border)',
+          color: 'inherit',
+          minHeight: '80px',
+          outline: 'none'
+        }}
         placeholder="Description"
         value={data.description}
         onChange={e => setData({ ...data, description: e.target.value })}
@@ -56,14 +104,36 @@ export default function AddReminder({ selectedDate, onAdded }) {
 
       <input
         type="time"
-        className="w-full p-2 mb-4 rounded bg-[#0F0505] border border-gray-700 text-white"
+        style={{
+          width: '100%',
+          padding: '12px',
+          marginBottom: '20px',
+          borderRadius: '12px',
+          background: 'var(--input-bg)',
+          border: '1px solid var(--card-border)',
+          color: 'inherit',
+          outline: 'none'
+        }}
         value={data.time}
         onChange={e => setData({ ...data, time: e.target.value })}
       />
 
       <button
         onClick={submit}
-        className="w-full bg-[#D90A14] hover:bg-[#FF1A2B] py-2 rounded font-semibold"
+        style={{
+          width: '100%',
+          background: 'var(--accent)',
+          color: 'white',
+          padding: '12px',
+          borderRadius: '12px',
+          fontWeight: '700',
+          cursor: 'pointer',
+          border: 'none',
+          fontFamily: 'Syne',
+          transition: '0.3s opacity'
+        }}
+        onMouseOver={(e) => e.target.style.opacity = '0.9'}
+        onMouseOut={(e) => e.target.style.opacity = '1'}
       >
         Save Reminder
       </button>

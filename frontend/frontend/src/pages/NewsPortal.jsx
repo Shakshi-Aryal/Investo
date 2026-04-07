@@ -1,44 +1,134 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { X, TrendingUp, Globe, Coins, ArrowRight, RefreshCcw, BookOpen } from "lucide-react";
+import Darklogo from "../assets/Darklogo.png";
+import Lightlogo from "../assets/Lightlogo.png";
 
-// OFFICIAL NEPAL SOURCES (Using 2026 API Dates)
 const NRB_FOREX_API = "https://www.nrb.org.np/api/forex/v1/rates?page=1&per_page=1&from=2026-01-17&to=2026-01-18";
+
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap');
+
+  .feat-root {
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── DYNAMIC THEMES ── */
+  .mode-dark {
+    background: radial-gradient(circle at top right, #1a0508, #080306);
+    color: #ffffff;
+    --accent: #D90A14;
+    --accent-glow: rgba(217, 10, 20, 0.15);
+    --card-bg: rgba(255, 255, 255, 0.03);
+    --card-border: rgba(217, 10, 20, 0.1);
+    --input-bg: rgba(255, 255, 255, 0.05);
+    --text-muted: #9a7a7c;
+  }
+
+  .mode-light {
+    background: radial-gradient(circle at top right, #fff5e6, #faf8f3);
+    color: #1a1208;
+    --accent: #BA7517;
+    --accent-glow: rgba(186, 117, 23, 0.1);
+    --card-bg: rgba(255, 255, 255, 0.7);
+    --card-border: rgba(186, 117, 23, 0.15);
+    --input-bg: #ffffff;
+    --text-muted: #8a6a3a;
+  }
+
+  /* ── NAVIGATION ── */
+  .dash-header {
+    width: 100%; max-width: 1200px; display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 30px; backdrop-filter: blur(10px);
+    padding: 16px 24px; border-radius: 24px; background: var(--card-bg);
+    border: 1px solid var(--card-border); z-index: 1001;
+  }
+
+  .dash-btn-circle {
+    width: 42px; height: 42px; border-radius: 12px; background: var(--input-bg);
+    border: 1px solid var(--card-border); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: 0.2s; color: inherit;
+  }
+  .dash-btn-circle:hover { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .nav-trigger {
+    width: 42px; height: 42px; border-radius: 12px; background: var(--input-bg);
+    border: 1px solid var(--card-border); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  }
+  .bar { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; transition: 0.3s; }
+
+  .side-drawer {
+    position: fixed; top: 0; left: -320px; width: 300px; height: 100vh;
+    background: var(--card-bg); backdrop-filter: blur(25px);
+    border-right: 1px solid var(--card-border); z-index: 1000;
+    transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+    padding: 100px 24px 40px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .side-drawer.open { left: 0; box-shadow: 20px 0 60px rgba(0,0,0,0.2); }
+
+  .nav-item {
+    padding: 14px 20px; border-radius: 14px; color: var(--text-muted);
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 12px; font-family: 'Syne', sans-serif;
+  }
+  .nav-item:hover, .nav-item.active { background: var(--accent-glow); color: var(--accent); transform: translateX(5px); }
+
+  /* ── NEWS UI ── */
+  .glass-card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 24px; padding: 24px; backdrop-filter: blur(10px);
+  }
+
+  .forex-table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+  }
+  .forex-table th { padding: 16px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--card-border); }
+  .forex-table td { padding: 16px; border-bottom: 1px solid var(--card-border); }
+`;
 
 export default function NewsPortal() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isDarkMode, setIsDarkMode] = useState(() => JSON.parse(localStorage.getItem("theme") || "true"));
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  
   const [loading, setLoading] = useState(true);
   const [forex, setForex] = useState([]);
   const [showNewspaper, setShowNewspaper] = useState(false);
   
-  // Real January 2026 Rates for Nepal
-  const [metalRates, setMetalRates] = useState({
+  const [metalRates] = useState({
     fineGold: { buy: 276500, sell: 277200, purity: "99.99%" }, 
     tejabiGold: { buy: 275100, sell: 275800, purity: "91.6%" },
     silver: { buy: 5485, sell: 5645, purity: "99.9%" }
   });
 
-  // Mock News Data
-  const [news, setNews] = useState([
+  const [news] = useState([
     {
       title: "Gold price climbs above Rs 277,000 per tola in Nepal",
       source: "The Rising Nepal",
       date: "2026-01-17",
       snippet: "The Federation of Nepal Gold and Silver Dealers' Association fixed the price of hallmark gold at Rs 277,200 today...",
-      url: "#"
     },
     {
       title: "NRB Maintains Stable Inflation Targets for Q3",
       source: "Kathmandu Post",
       date: "2026-01-16",
       snippet: "Nepal Rastra Bank reports inflation contained at 3.8% despite global supply chain pressures.",
-      url: "#"
     }
   ]);
 
   useEffect(() => {
+    localStorage.setItem("theme", JSON.stringify(isDarkMode));
+    window.dispatchEvent(new Event("storage"));
     fetchLiveRates();
-  }, []);
+  }, [isDarkMode]);
 
   const fetchLiveRates = async () => {
     setLoading(true);
@@ -55,111 +145,128 @@ export default function NewsPortal() {
     }
   };
 
+  const navItems = [
+    { name: "Dashboard", path: "/dashboard", icon: "🏠" },
+    { name: "Profile", path: "/profile", icon: "👤" },
+    { name: "Charts", path: "/stock-charts", icon: "📈" },
+    { name: "Intelligence", path: "/news", icon: "🌐" },
+    { name: "Reminders", path: "/reminders", icon: "⏰" },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white p-4 md:p-8 font-sans">
-      
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-10 border-b border-white/10 pb-6">
-        <div>
-          <h1 className="text-3xl font-black tracking-tighter text-red-600 uppercase">Investo.np</h1>
-          <p className="text-gray-500 text-xs uppercase tracking-widest">Nepal Intelligence Portal</p>
-        </div>
-        <div className="flex gap-4">
-          <button 
-            onClick={() => setShowNewspaper(true)}
-            className="hidden md:flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition border border-white/10"
-          >
-            <BookOpen size={18} /> The Daily Brief
+    <div className={`feat-root ${isDarkMode ? "mode-dark" : "mode-light"}`}>
+      <style>{css}</style>
+
+      {/* ── UNIFIED HEADER ── */}
+      <header className="dash-header">
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="nav-trigger" onClick={() => setIsNavOpen(!isNavOpen)}>
+            <div className="bar" /><div className="bar" /><div className="bar" />
           </button>
-          <button onClick={fetchLiveRates} className="p-2 hover:bg-white/5 rounded-full transition">
-            <RefreshCcw size={20} className={loading ? "animate-spin text-red-500" : "text-gray-400"} />
-          </button>
+          <button className="dash-btn-circle" onClick={() => navigate(-1)}>←</button>
         </div>
+        <img src={isDarkMode ? Darklogo : Lightlogo} alt="Investo" style={{ height: '24px' }} />
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button className="dash-btn-circle" onClick={() => setShowNewspaper(true)}>
+             <BookOpen size={18} />
+          </button>
+          <button className="dash-btn-circle" onClick={() => setIsDarkMode(!isDarkMode)}>
+            {isDarkMode ? "☀️" : "🌙"}
+          </button>
+          <img src="https://i.pravatar.cc/150?u=investo" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--card-border)' }} />
+        </div>
+      </header>
+
+      {/* ── SIDE DRAWER ── */}
+      <div className={`side-drawer ${isNavOpen ? 'open' : ''}`}>
+        <h2 style={{ fontFamily: 'Syne', padding: '0 20px 30px', fontSize: '28px' }}>Investo<span>.</span></h2>
+        {navItems.map(item => (
+          <div key={item.path} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
+            {item.icon} {item.name}
+          </div>
+        ))}
       </div>
 
-      {/* 1. BULLION MARKET SECTION */}
-      <section className="mb-12">
-        <div className="flex items-center gap-2 mb-6">
-          <Coins className="text-yellow-500" />
-          <h2 className="text-xl font-bold italic">Gold & Silver (FENOSGODA)</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <BullionCard title="Fine Gold (24K)" buy={metalRates.fineGold.buy} sell={metalRates.fineGold.sell} unit="Tola" color="border-yellow-600/30" purity={metalRates.fineGold.purity} />
-          <BullionCard title="Tejabi Gold" buy={metalRates.tejabiGold.buy} sell={metalRates.tejabiGold.sell} unit="Tola" color="border-orange-600/30" purity={metalRates.tejabiGold.purity} />
-          <BullionCard title="Silver" buy={metalRates.silver.buy} sell={metalRates.silver.sell} unit="Tola" color="border-gray-500/30" purity={metalRates.silver.purity} />
-        </div>
-      </section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-        {/* 2. FOREX TABLE */}
-        <div className="lg:col-span-2">
-          <div className="flex items-center gap-2 mb-6">
-            <Globe className="text-blue-500" />
-            <h2 className="text-xl font-bold italic">NRB Official Exchange</h2>
-          </div>
-          <div className="overflow-x-auto bg-[#111112] rounded-2xl border border-white/5">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-white/10 text-gray-400 text-sm uppercase">
-                  <th className="p-4 font-medium">Currency</th>
-                  <th className="p-4 font-medium">Unit</th>
-                  <th className="p-4 font-medium text-green-400">Buy (Rs)</th>
-                  <th className="p-4 font-medium text-red-400">Sell (Rs)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {forex.map((cur, idx) => (
-                  <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02] transition">
-                    <td className="p-4 font-bold">
-                        <div className="flex items-center gap-3">
-                         <span className="bg-white/10 px-2 py-1 rounded text-[10px] text-gray-300">{cur.currency.iso3}</span>
-                         <span className="text-sm">{cur.currency.name}</span>
-                        </div>
-                    </td>
-                    <td className="p-4 text-gray-400">{cur.currency.unit}</td>
-                    <td className="p-4 font-mono text-green-400">{cur.buy}</td>
-                    <td className="p-4 font-mono text-red-400">{cur.sell}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* 3. NEWS FEED */}
-        <div className="space-y-6">
-           <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="text-red-500" />
-            <h2 className="text-xl font-bold italic">Market News</h2>
-          </div>
-          {news.map((item, i) => (
-            <div key={i} className="bg-[#111112] p-5 rounded-2xl border border-white/5 hover:border-red-500/30 transition group">
-              <span className="text-[10px] text-red-500 font-bold uppercase">{item.source} • {item.date}</span>
-              <h3 className="text-md font-bold mt-1 group-hover:text-red-400 transition">{item.title}</h3>
-              <p className="text-gray-500 text-xs mt-2 line-clamp-2">{item.snippet}</p>
-              <ArrowRight size={14} className="mt-3 text-gray-600 group-hover:translate-x-1 transition cursor-pointer" />
+      <main style={{ width: '100%', maxWidth: '1200px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
+            <div>
+                <p style={{ color: 'var(--accent)', fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '2px' }}>Real-time Intelligence</p>
+                <h1 style={{ fontFamily: 'Syne', fontSize: '36px' }}>Market <span style={{ color: 'var(--accent)' }}>Portal</span></h1>
             </div>
-          ))}
+            <button onClick={fetchLiveRates} className="dash-btn-circle">
+                <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />
+            </button>
         </div>
-      </div>
+
+        {/* BULLION SECTION */}
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '40px' }}>
+            <BullionCard title="Fine Gold (24K)" sell={metalRates.fineGold.sell} buy={metalRates.fineGold.buy} purity={metalRates.fineGold.purity} icon="🏆" />
+            <BullionCard title="Tejabi Gold" sell={metalRates.tejabiGold.sell} buy={metalRates.tejabiGold.buy} purity={metalRates.tejabiGold.purity} icon="🏵️" />
+            <BullionCard title="Silver" sell={metalRates.silver.sell} buy={metalRates.silver.buy} purity={metalRates.silver.purity} icon="🥈" />
+        </section>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '32px' }}>
+            {/* FOREX TABLE */}
+            <div className="glass-card" style={{ overflowX: 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                    <Globe size={20} color="var(--accent)" />
+                    <h2 style={{ fontFamily: 'Syne', fontSize: '18px' }}>NRB Exchange Rates</h2>
+                </div>
+                <table className="forex-table">
+                    <thead>
+                        <tr>
+                            <th>Currency</th>
+                            <th>Unit</th>
+                            <th style={{ color: '#10B981' }}>Buying</th>
+                            <th style={{ color: '#EF4444' }}>Selling</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {forex.map((cur, idx) => (
+                            <tr key={idx}>
+                                <td style={{ fontWeight: '700' }}>
+                                    <span style={{ background: 'var(--accent-glow)', color: 'var(--accent)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', marginRight: '10px' }}>{cur.currency.iso3}</span>
+                                    {cur.currency.name}
+                                </td>
+                                <td style={{ color: 'var(--text-muted)' }}>{cur.currency.unit}</td>
+                                <td style={{ color: '#10B981', fontWeight: 'bold' }}>{cur.buy}</td>
+                                <td style={{ color: '#EF4444', fontWeight: 'bold' }}>{cur.sell}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* NEWS FEED */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h2 style={{ fontFamily: 'Syne', fontSize: '18px' }}>Top Stories</h2>
+                {news.map((item, i) => (
+                    <div key={i} className="glass-card" style={{ padding: '20px', transition: '0.3s', cursor: 'pointer' }}>
+                         <p style={{ color: 'var(--accent)', fontSize: '10px', fontWeight: '800', marginBottom: '8px' }}>{item.source} • {item.date}</p>
+                         <h3 style={{ fontWeight: '700', fontSize: '15px', lineHeight: '1.4', marginBottom: '10px' }}>{item.title}</h3>
+                         <p style={{ fontSize: '13px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.snippet}</p>
+                         <ArrowRight size={14} style={{ marginTop: '15px', color: 'var(--accent)' }} />
+                    </div>
+                ))}
+            </div>
+        </div>
+      </main>
 
       {/* NEWSPAPER MODAL */}
       {showNewspaper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-          <div className="bg-[#f4f1ea] text-black w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-sm relative shadow-2xl">
-            <button onClick={() => setShowNewspaper(false)} className="absolute top-4 right-4 p-2 hover:bg-black/5 rounded-full"><X size={24} /></button>
-            <div className="bg-[#e31219] p-4 text-center text-white font-serif text-2xl font-bold">The Investor Insight</div>
-            <div className="p-8 font-serif">
-              <h3 className="text-3xl font-bold text-center border-b-2 border-black pb-4 mb-6 uppercase">Nepal Weekly Edition</h3>
-              <article className="mb-8">
-                <h4 className="text-xl font-bold mb-2">Bullion Market Hits Resistance</h4>
-                <p className="leading-relaxed text-gray-800">Gold prices remain at historic highs as investors seek safety amid global currency fluctuations. Local traders expect a steady demand through the marriage season despite high costs.</p>
-              </article>
-              <article>
-                <h4 className="text-xl font-bold mb-2">Foreign Exchange Stability</h4>
-                <p className="leading-relaxed text-gray-800">NRB reserves show improvement this month, primarily driven by strong remittance inflows which peaked in mid-January 2026.</p>
-              </article>
-              <div className="mt-10 pt-6 border-t border-black text-center text-xs text-gray-500 italic">© 2026 Investo Nepal - Financial Intelligence Unit</div>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(10px)' }}>
+          <div style={{ background: '#f4f1ea', color: '#1a1a1a', width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '4px', position: 'relative', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+            <button onClick={() => setShowNewspaper(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', cursor: 'pointer', color: '#000' }}><X size={24} /></button>
+            <div style={{ background: '#D90A14', padding: '15px', textAlign: 'center', color: '#fff', fontFamily: 'Syne', fontWeight: '800', fontSize: '24px' }}>INVESTO DAILY</div>
+            <div style={{ padding: '40px', fontFamily: 'serif' }}>
+              <h3 style={{ fontSize: '32px', fontWeight: '900', textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '20px', marginBottom: '30px' }}>NEPAL INTELLIGENCE REPORT</h3>
+              <div style={{ columnCount: 2, columnGap: '30px', textAlign: 'justify' }}>
+                <h4 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px', color: '#D90A14' }}>Remittance Surges Q1</h4>
+                <p style={{ fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' }}>NRB reports indicate that remittance inflows have hit a record high for the start of 2026. This influx is expected to stabilize foreign exchange reserves despite rising import costs.</p>
+                <h4 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px', color: '#D90A14' }}>Bullion Market Alert</h4>
+                <p style={{ fontSize: '14px', lineHeight: '1.6' }}>With gold prices hovering near Rs 277k, local jewelry markets see a shift towards investment-grade bars as consumer sentiment pivots from decorative to survivalist financial strategies.</p>
+              </div>
+              <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #ccc', textAlign: 'center', fontSize: '12px', color: '#666', fontStyle: 'italic' }}>© 2026 Investo Nepal - Data sourced from NRB & FENOSGODA</div>
             </div>
           </div>
         </div>
@@ -168,33 +275,25 @@ export default function NewsPortal() {
   );
 }
 
-function BullionCard({ title, buy, sell, unit, color, purity }) {
-  return (
-    <div className={`bg-[#111112] border ${color} p-6 rounded-2xl relative overflow-hidden group transition-all duration-300 hover:bg-[#161618]`}>
-      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition">
-        <TrendingUp size={48} />
-      </div>
-      
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-gray-400 text-xs uppercase tracking-widest">{title}</h3>
-        <span className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[10px] font-mono text-yellow-500/80 uppercase">
-          {purity} Pure
-        </span>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <p className="text-3xl font-black">Rs {sell.toLocaleString()}</p>
-          <p className="text-[10px] text-red-500 font-bold uppercase tracking-tighter">Selling Rate</p>
+function BullionCard({ title, sell, buy, purity, icon }) {
+    return (
+        <div className="glass-card" style={{ position: 'relative', overflow: 'hidden' }}>
+            <div style={{ fontSize: '40px', position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.1 }}>{icon}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: '10px', background: 'var(--accent-glow)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>{purity}</span>
+            </div>
+            <div style={{ marginBottom: '15px' }}>
+                <p style={{ fontSize: '10px', color: '#EF4444', fontWeight: '800', textTransform: 'uppercase' }}>Selling Rate</p>
+                <p style={{ fontSize: '28px', fontWeight: '900', fontFamily: 'Syne' }}>Rs {sell.toLocaleString()}</p>
+            </div>
+            <div style={{ paddingTop: '15px', borderTop: '1px solid var(--card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <p style={{ fontSize: '10px', color: '#10B981', fontWeight: '800', textTransform: 'uppercase' }}>Buying Rate</p>
+                    <p style={{ fontSize: '16px', fontWeight: '700', color: '#10B981' }}>Rs {buy.toLocaleString()}</p>
+                </div>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>per Tola</span>
+            </div>
         </div>
-        <div className="flex justify-between items-end border-t border-white/5 pt-4">
-          <div>
-            <p className="text-lg font-bold text-green-500">Rs {buy.toLocaleString()}</p>
-            <p className="text-[10px] text-gray-500 uppercase">Buying</p>
-          </div>
-          <span className="text-gray-600 text-[10px]">per {unit}</span>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
