@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import Darklogo from "../assets/Darklogo.png";
 import Lightlogo from "../assets/Lightlogo.png";
 
@@ -17,7 +16,6 @@ const css = `
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ── DYNAMIC THEMES ── */
   .mode-dark {
     background: radial-gradient(circle at top right, #1a0508, #080306);
     color: #ffffff;
@@ -40,7 +38,6 @@ const css = `
     --text-muted: #8a6a3a;
   }
 
-  /* ── NAVIGATION ── */
   .dash-header {
     width: 100%; max-width: 1200px; display: flex; justify-content: space-between;
     align-items: center; margin-bottom: 30px; backdrop-filter: blur(10px);
@@ -78,12 +75,12 @@ const css = `
   }
   .nav-item:hover, .nav-item.active { background: var(--accent-glow); color: var(--accent); transform: translateX(5px); }
 
-  /* ── STOCK SPECIFIC UI ── */
   .stock-container { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 24px; }
   
   .glass-card {
     background: var(--card-bg); border: 1px solid var(--card-border);
     border-radius: 24px; padding: 24px; backdrop-filter: blur(10px);
+    min-height: 100px;
   }
 
   .status-badge {
@@ -106,7 +103,14 @@ const css = `
   }
   .search-box:focus { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 
-  .watchlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+  .chart-btn-card {
+    cursor: pointer; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    border: 2px dashed var(--accent); transition: 0.3s;
+  }
+  .chart-btn-card:hover { background: var(--accent-glow); transform: translateY(-2px); }
+
+  .watchlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; min-height: 50px; }
   .watch-item { 
     background: var(--input-bg); padding: 20px; border-radius: 20px; 
     border: 1px solid var(--card-border); position: relative; 
@@ -118,18 +122,14 @@ export default function Stockcharts() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // State
   const [isDarkMode, setIsDarkMode] = useState(() => JSON.parse(localStorage.getItem("theme") || "true"));
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [stocks, setStocks] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
   const [gainers, setGainers] = useState([]);
-  const [losers, setLosers] = useState([]);
   const [status, setStatus] = useState(null);
-  const [chartData, setChartData] = useState([]);
   const [selectedStock, setSelectedStock] = useState("NABIL");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
   const [isChartZoomed, setIsChartZoomed] = useState(false);
 
   useEffect(() => {
@@ -141,33 +141,30 @@ export default function Stockcharts() {
     try { return res.ok ? await res.json() : fallback; } catch { return fallback; }
   };
 
-  const fetchData = async () => {
-    setLoading(true);
-    const [sRes, gRes, lRes, stRes, wRes] = await Promise.all([
-      fetch(`${API}/stocks/`), fetch(`${API}/gainers/`),
-      fetch(`${API}/losers/`), fetch(`${API}/status/`), fetch(`${API}/watchlist/`),
-    ]);
-    setStocks(await safeJson(sRes, []));
-    setGainers(await safeJson(gRes, []));
-    setLosers(await safeJson(lRes, []));
-    setStatus(await safeJson(stRes, null));
-    setWatchlist(await safeJson(wRes, []));
-    setLoading(false);
-  };
+  const fetchData = useCallback(async () => {
+    const timestamp = Date.now();
+    try {
+      const [sRes, gRes, stRes, wRes] = await Promise.all([
+        fetch(`${API}/stocks/?t=${timestamp}`),
+        fetch(`${API}/gainers/?t=${timestamp}`),
+        fetch(`${API}/status/?t=${timestamp}`),
+        fetch(`${API}/watchlist/?t=${timestamp}`),
+      ]);
+      
+      setStocks(await safeJson(sRes, []));
+      setGainers(await safeJson(gRes, []));
+      setStatus(await safeJson(stRes, null));
+      setWatchlist(await safeJson(wRes, []));
+    } catch (e) {
+      console.error("Fetch failed", e);
+    }
+  }, [API]);
 
-  const fetchChart = async (symbol) => {
-    const res = await fetch(`${API}/chart/?symbol=${symbol}`);
-    const data = await safeJson(res, []);
-    setChartData(data.map(d => ({ date: d.date, price: d.close })));
-  };
-
-  const toggleWatchlist = async (symbol) => {
-    await fetch(`${API}/watchlist/toggle/?symbol=${symbol}`);
-    fetchData(); 
-  };
-
-  useEffect(() => { fetchData(); }, []);
-  useEffect(() => { fetchChart(selectedStock); }, [selectedStock]);
+  useEffect(() => {
+    fetchData();
+    const inv = setInterval(fetchData, 60000);
+    return () => clearInterval(inv);
+  }, [fetchData]);
 
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: "🏠" },
@@ -183,7 +180,7 @@ export default function Stockcharts() {
     <div className={`feat-root ${isDarkMode ? "mode-dark" : "mode-light"}`}>
       <style>{css}</style>
 
-      {/* ── UNIFIED HEADER ── */}
+      {/* HEADER */}
       <header className="dash-header">
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="nav-trigger" onClick={() => setIsNavOpen(!isNavOpen)}>
@@ -196,11 +193,11 @@ export default function Stockcharts() {
           <button className="dash-btn-circle" onClick={() => setIsDarkMode(!isDarkMode)}>
             {isDarkMode ? "☀️" : "🌙"}
           </button>
-          <img src="https://i.pravatar.cc/150?u=investo" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--card-border)' }} />
+          <img src="https://i.pravatar.cc/150?u=investo" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--card-border)' }} alt="User" />
         </div>
       </header>
 
-      {/* ── SIDE DRAWER ── */}
+      {/* SIDEBAR */}
       <div className={`side-drawer ${isNavOpen ? 'open' : ''}`}>
         <h2 style={{ fontFamily: 'Syne', padding: '0 20px 30px', fontSize: '28px' }}>Investo<span>.</span></h2>
         {navItems.map(item => (
@@ -211,71 +208,69 @@ export default function Stockcharts() {
       </div>
 
       <main className="stock-container">
-        {/* Market Status Bar */}
-        <div className="flex justify-between items-center">
-          <h1 style={{ fontFamily: 'Syne', fontSize: '28px' }}>NEPSE <span style={{color:'var(--accent)'}}>Analytics</span></h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontFamily: 'Syne', fontSize: '28px', margin: 0 }}>NEPSE <span style={{color:'var(--accent)'}}>Analytics</span></h1>
           <div className="status-badge" style={{ background: status?.isOpen ? 'rgba(34,197,94,0.1)' : 'rgba(217,10,20,0.1)', color: status?.isOpen ? '#22c55e' : '#ef4444' }}>
             {status?.isOpen ? "● Market Open" : "○ Market Closed"}
           </div>
         </div>
 
-        {/* Watchlist Section */}
+        {/* WATCHLIST */}
         <section className="glass-card">
-          <h3 style={{ fontFamily: 'Syne', marginBottom: '20px', color: 'var(--accent)' }}>⭐ Watchlist</h3>
+          <h3 style={{ fontFamily: 'Syne', marginBottom: '20px', color: 'var(--accent)', marginTop: 0 }}>⭐ Watchlist</h3>
           <div className="watchlist-grid">
-            {watchlist.map((s, i) => (
+            {watchlist.length > 0 ? watchlist.map((s, i) => (
               <div key={i} className="watch-item">
                 <button onClick={() => toggleWatchlist(s.symbol)} style={{ position:'absolute', top:'10px', right:'10px', border:'none', background:'none', cursor:'pointer', color:'#ef4444' }}>✕</button>
                 <div style={{ fontSize: '12px', opacity: 0.6 }}>{s.symbol}</div>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', margin: '4px 0' }}>Rs.{s.last_traded_price}</div>
-                <div style={{ fontSize: '13px', color: s.percentage_change >= 0 ? '#22c55e' : '#ef4444' }}>
-                  {s.percentage_change >= 0 ? "▲" : "▼"} {Math.abs(s.percentage_change)}%
+                <div style={{ fontSize: '13px', color: (s.percentage_change || 0) >= 0 ? '#22c55e' : '#ef4444' }}>
+                  {(s.percentage_change || 0) >= 0 ? "▲" : "▼"} {Math.abs(s.percentage_change || 0)}%
                 </div>
               </div>
-            ))}
+            )) : <p style={{opacity: 0.5}}>No stocks in watchlist</p>}
           </div>
         </section>
 
-        {/* Stats & Mini Chart */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+          {/* TOP GAINERS SECTION */}
           <div className="glass-card">
-            <h4 style={{ color: '#22c55e', marginBottom: '15px' }}>Top Gainers</h4>
-            {gainers.slice(0, 4).map((g, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--card-border)' }}>
-                <span>{g.symbol}</span><span style={{ color: '#22c55e' }}>+{g.percentage_change}%</span>
+            <h4 style={{ color: '#22c55e', marginBottom: '15px', marginTop: 0 }}>Top Gainers</h4>
+            {status?.isOpen === false ? (
+              <div style={{ textAlign: 'center', padding: '20px', opacity: 0.6 }}>
+                <p style={{ fontSize: '24px' }}>🌙</p>
+                <p>Market Closed</p>
               </div>
-            ))}
+            ) : gainers.length > 0 ? (
+              gainers.slice(0, 4).map((g, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--card-border)' }}>
+                  <span>{g.symbol}</span><span style={{ color: '#22c55e' }}>+{g.percentage_change}%</span>
+                </div>
+              ))
+            ) : (
+              <p style={{opacity: 0.5}}>Loading data...</p>
+            )}
           </div>
 
+          {/* INTERACTIVE CHART BUTTON CARD */}
           <div 
-            className="glass-card" 
-            style={{ cursor: 'pointer', border: '1px solid var(--accent)' }}
+            className="glass-card chart-btn-card" 
             onClick={() => setIsChartZoomed(true)}
           >
-            <div className="flex justify-between">
-              <h4 style={{ color: 'var(--accent)' }}>{selectedStock} Performance</h4>
-              <span style={{ fontSize: '10px', opacity: 0.5 }}>CLICK TO EXPAND</span>
-            </div>
-            <div style={{ height: '120px', marginTop: '10px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <Line type="monotone" dataKey="price" stroke={isDarkMode ? "#D90A14" : "#BA7517"} dot={false} strokeWidth={2} />
-                  <YAxis hide domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ background: '#000', border: 'none', borderRadius: '8px', fontSize: '12px' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <span style={{ fontSize: '40px', marginBottom: '10px' }}>📊</span>
+            <h4 style={{ color: 'var(--accent)', margin: 0 }}>Interactive NEPSE Chart</h4>
+            <p style={{ fontSize: '12px', opacity: 0.6, marginTop: '8px' }}>Launch Advanced Analysis View</p>
           </div>
         </div>
 
-        {/* Main Stock Table */}
         <input 
           className="search-box" 
           placeholder="Search Symbol (e.g. NABIL)..." 
+          value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <div className="glass-card" style={{ padding: '10px' }}>
+        <div className="glass-card" style={{ padding: '10px', overflowX: 'auto' }}>
           <table className="stock-table">
             <thead>
               <tr><th>Symbol</th><th>LTP (Rs.)</th><th>Change</th><th style={{ textAlign: 'center' }}>Watch</th></tr>
@@ -304,23 +299,19 @@ export default function Stockcharts() {
         </div>
       </main>
 
-      {/* ── FULLSCREEN MODAL CHART ── */}
+      {/* FULLSCREEN IFRAME MODAL */}
       {isChartZoomed && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: '1000px', height: '80vh', position: 'relative' }}>
-            <button onClick={() => setIsChartZoomed(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer' }}>✕</button>
-            <h2 style={{ fontFamily: 'Syne', fontSize: '32px', marginBottom: '30px' }}>{selectedStock} <span style={{ color: 'var(--accent)' }}>History</span></h2>
-            <div style={{ height: '70%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="date" stroke="var(--text-muted)" tick={{ fontSize: 10 }} />
-                  <YAxis stroke="var(--text-muted)" domain={['auto', 'auto']} orientation="right" />
-                  <Tooltip contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }} />
-                  <Line type="monotone" dataKey="price" stroke="var(--accent)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 8 }} />
-                </LineChart>
-              </ResponsiveContainer>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '1400px', height: '90vh', position: 'relative', background: isDarkMode ? '#111' : '#fff', padding: '0', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 24px', borderBottom: '1px solid var(--card-border)' }}>
+              <h2 style={{ fontFamily: 'Syne', fontSize: '20px', margin: 0 }}>NepseAlpha <span style={{ color: 'var(--accent)' }}>Terminal</span></h2>
+              <button onClick={() => setIsChartZoomed(false)} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: 'bold' }}>Close Terminal</button>
             </div>
+            <iframe 
+              src="https://nepsealpha.com/nepse-chart" 
+              title="Nepse Chart"
+              style={{ width: '100%', height: 'calc(100% - 60px)', border: 'none' }}
+            />
           </div>
         </div>
       )}

@@ -70,10 +70,33 @@ const css = `
   .inv-card { width: 100%; max-width: 440px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 28px 28px 24px; }
   .inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .inv-full { grid-column: 1 / -1; }
-  .inv-field { display: flex; flex-direction: column; gap: 6px; }
+  .inv-field { display: flex; flex-direction: column; gap: 6px; position: relative; }
   .inv-label { font-size: 12px; font-weight: 500; letter-spacing: 0.4px; color: var(--label); text-transform: uppercase; }
+  .inv-hint { font-size: 10px; color: var(--muted); margin-top: -2px; }
   .inv-input { width: 100%; padding: 11px 14px; border-radius: 11px; border: 1px solid var(--input-border); background: var(--input-bg); color: inherit; font-family: 'DM Sans', sans-serif; font-size: 14px; transition: border-color 0.18s, box-shadow 0.18s; outline: none; }
   .inv-input:focus { border-color: var(--input-border-focus); box-shadow: 0 0 0 3px var(--accent-dim); }
+  
+  /* Eye Toggle Styles */
+  .inv-input-container { position: relative; width: 100%; }
+  .inv-eye-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+  .inv-eye-btn:hover { color: var(--accent); }
+
   .inv-btn-submit { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .inv-btn-submit:hover:not(:disabled) { background: var(--accent-hover); }
   .inv-divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; }
@@ -96,6 +119,11 @@ function InvestoRegister({ isDarkMode, setIsDarkMode }) {
   const [message, setMessage] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Visibility States
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [formData, setFormData] = useState({
     username: "", email: "", password: "", confirmPassword: "",
     first_name: "", last_name: "", date_of_birth: "",
@@ -109,13 +137,31 @@ function InvestoRegister({ isDarkMode, setIsDarkMode }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
-    setLoading(true);
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(formData.password)) {
+      setMessage("Password must be 8+ chars with uppercase, lowercase, and a number.");
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setMessage("Passwords do not match!");
-      setLoading(false);
       return;
     }
+
+    const dob = new Date(formData.date_of_birth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    if (age < 18) {
+      setMessage("You must be at least 18 years old to register.");
+      return;
+    }
+
+    setLoading(true);
 
     const payload = { ...formData };
     delete payload.confirmPassword;
@@ -186,9 +232,60 @@ function InvestoRegister({ isDarkMode, setIsDarkMode }) {
               <div className="inv-field"><label className="inv-label">Last Name</label><input className="inv-input" type="text" name="last_name" value={formData.last_name} onChange={handleChange} placeholder="Doe" required /></div>
               <div className="inv-field inv-full"><label className="inv-label">Username</label><input className="inv-input" type="text" name="username" value={formData.username} onChange={handleChange} placeholder="johndoe123" required /></div>
               <div className="inv-field inv-full"><label className="inv-label">Email Address</label><input className="inv-input" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="john@example.com" required /></div>
-              <div className="inv-field inv-full"><label className="inv-label">Date of Birth</label><input className="inv-input" type="date" name="date_of_birth" value={formData.date_of_birth} onChange={handleChange} required /></div>
-              <div className="inv-field"><label className="inv-label">Password</label><input className="inv-input" type="password" name="password" value={formData.password} onChange={handleChange} placeholder="••••••••" required /></div>
-              <div className="inv-field"><label className="inv-label">Confirm</label><input className="inv-input" type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" required /></div>
+              
+              <div className="inv-field inv-full">
+                <label className="inv-label">Date of Birth</label>
+                <input className="inv-input" type="date" name="date_of_birth" value={formData.date_of_birth} onChange={handleChange} required />
+                <span className="inv-hint">Investo requires users to be 18+ years old.</span>
+              </div>
+
+              {/* Password Field with Toggle */}
+              <div className="inv-field">
+                <label className="inv-label">Password</label>
+                <div className="inv-input-container">
+                  <input 
+                    className="inv-input" 
+                    type={showPassword ? "text" : "password"} 
+                    name="password" 
+                    value={formData.password} 
+                    onChange={handleChange} 
+                    placeholder="••••••••" 
+                    required 
+                  />
+                  <button 
+                    type="button" 
+                    className="inv-eye-btn" 
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? "HIDE" : "SHOW"}
+                  </button>
+                </div>
+                <span className="inv-hint">8+ chars, A-z, 0-9</span>
+              </div>
+
+              {/* Confirm Password Field with Toggle */}
+              <div className="inv-field">
+                <label className="inv-label">Confirm</label>
+                <div className="inv-input-container">
+                  <input 
+                    className="inv-input" 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    name="confirmPassword" 
+                    value={formData.confirmPassword} 
+                    onChange={handleChange} 
+                    placeholder="••••••••" 
+                    required 
+                  />
+                  <button 
+                    type="button" 
+                    className="inv-eye-btn" 
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? "HIDE" : "SHOW"}
+                  </button>
+                </div>
+              </div>
+
             </div>
             <button type="submit" className="inv-btn-submit" disabled={loading}>{loading ? <Spinner size={5} color="white" /> : "Create Account"}</button>
             <div className="inv-divider"><div className="inv-divider-line" /><span>or continue with</span><div className="inv-divider-line" /></div>

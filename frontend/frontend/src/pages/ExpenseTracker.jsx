@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Pie, Bar, Line } from "react-chartjs-2";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { X, TrendingUp, PieChart, BarChart, Download, Plus, Trash2 } from "lucide-react";
+import { X, TrendingUp, Download, Plus, Trash2, AlertCircle } from "lucide-react";
 import Darklogo from "../assets/Darklogo.png";
 import Lightlogo from "../assets/Lightlogo.png";
 
@@ -46,6 +46,7 @@ const css = `
     --card-border: rgba(217, 10, 20, 0.1);
     --input-bg: rgba(255, 255, 255, 0.05);
     --text-muted: #9a7a7c;
+    --error: #ff4d4d;
   }
 
   .mode-light {
@@ -57,6 +58,7 @@ const css = `
     --card-border: rgba(186, 117, 23, 0.15);
     --input-bg: #ffffff;
     --text-muted: #8a6a3a;
+    --error: #d93025;
   }
 
   .dash-header {
@@ -107,12 +109,18 @@ const css = `
     transition: 0.3s; width: 100%;
   }
   .invest-input:focus { border-color: var(--accent); }
+  .invest-input.error { border-color: var(--error); background: rgba(255, 77, 77, 0.05); }
+
+  .error-text {
+    color: var(--error); font-size: 11px; margin-top: 4px; display: flex; align-items: center; gap: 4px; font-weight: 600;
+  }
 
   .btn-main {
     padding: 14px 24px; border-radius: 14px; border: none; font-weight: 700;
     cursor: pointer; transition: 0.3s; font-family: 'Syne', sans-serif;
     color: white; display: flex; align-items: center; justify-content: center; gap: 8px;
   }
+  .btn-main:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 
   .history-row {
     display: flex; justify-content: space-between; align-items: center;
@@ -128,10 +136,14 @@ function ExpenseTracker() {
 
   const [isDarkMode, setIsDarkMode] = useState(() => JSON.parse(localStorage.getItem("theme") || "true"));
   const [isNavOpen, setIsNavOpen] = useState(false);
+  
+  // States for Input
   const [amount, setAmount] = useState("");
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("misc");
   const [description, setDescription] = useState("");
+  const [amountError, setAmountError] = useState("");
+
   const [history, setHistory] = useState([]);
   const [showCharts, setShowCharts] = useState(false);
 
@@ -158,9 +170,28 @@ function ExpenseTracker() {
 
   useEffect(() => { fetchExpenses(); }, []);
 
+  // Validation Logic while typing
+  const handleAmountChange = (e) => {
+    const val = e.target.value;
+    setAmount(val);
+    
+    if (val !== "" && parseFloat(val) <= 0) {
+      setAmountError("Amount must be greater than zero. Please re-enter.");
+    } else {
+      setAmountError("");
+    }
+  };
+
   const addEntry = async (e) => {
     e.preventDefault();
-    const expense = { amount: parseFloat(amount), type, category, description };
+    
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setAmountError("Invalid amount. Please fix to continue.");
+      return;
+    }
+
+    const expense = { amount: parsedAmount, type, category, description };
     try {
       const res = await fetch(API_URL, {
         method: "POST",
@@ -168,7 +199,10 @@ function ExpenseTracker() {
         body: JSON.stringify(expense),
       });
       if (res.ok) {
-        setAmount(""); setDescription(""); fetchExpenses();
+        setAmount(""); 
+        setDescription(""); 
+        setAmountError("");
+        fetchExpenses();
       }
     } catch (err) { console.error(err); }
   };
@@ -208,7 +242,6 @@ function ExpenseTracker() {
     <div className={`feat-root ${isDarkMode ? "mode-dark" : "mode-light"}`}>
       <style>{css}</style>
 
-      {/* HEADER */}
       <header className="dash-header">
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="nav-trigger" onClick={() => setIsNavOpen(!isNavOpen)}>
@@ -225,7 +258,6 @@ function ExpenseTracker() {
         </div>
       </header>
 
-      {/* DRAWER */}
       <div className={`side-drawer ${isNavOpen ? 'open' : ''}`}>
         <h2 style={{ fontFamily: 'Syne', padding: '0 20px 30px', fontSize: '28px' }}>Investo<span>.</span></h2>
         {navItems.map(item => (
@@ -238,23 +270,44 @@ function ExpenseTracker() {
       <main style={{ width: '100%', maxWidth: '1200px' }}>
         <h1 style={{ fontFamily: 'Syne', fontSize: '32px', marginBottom: '24px' }}>Expense <span style={{color:'var(--accent)'}}>Tracker</span></h1>
 
-        {/* INPUT FORM */}
         <section className="glass-card" style={{ marginBottom: '24px' }}>
-          <form onSubmit={addEntry} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            <input className="invest-input" type="number" placeholder="Amount (Rs.)" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          <form onSubmit={addEntry} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
+            
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <input 
+                className={`invest-input ${amountError ? 'error' : ''}`} 
+                type="number" 
+                placeholder="Amount (Rs.)" 
+                value={amount} 
+                onChange={handleAmountChange} 
+                step="any"
+                required 
+              />
+              {amountError && (
+                <span className="error-text">
+                  <AlertCircle size={12} /> {amountError}
+                </span>
+              )}
+            </div>
+
             <select className="invest-input" value={type} onChange={(e) => setType(e.target.value)}>
               <option value="expense">Expense</option>
               <option value="income">Income</option>
               <option value="saving">Saving</option>
             </select>
             <input className="invest-input" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required />
-            <button className="btn-main" style={{ background: 'var(--accent)' }}>
+            
+            <button 
+              className="btn-main" 
+              style={{ background: 'var(--accent)' }}
+              disabled={!!amountError || !amount}
+            >
               <Plus size={18} /> Add Entry
             </button>
           </form>
         </section>
 
-        {/* STATS */}
+        {/* STATS SECTION */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '32px' }}>
           <StatCard label="Total Income" val={income} color="#10B981" />
           <StatCard label="Expenses" val={totalExpense} color="#EF4444" />
@@ -278,7 +331,6 @@ function ExpenseTracker() {
           </div>
         )}
 
-        {/* HISTORY */}
         <section className="glass-card">
           <h3 style={{ fontFamily: 'Syne', marginBottom: '20px' }}>Recent Transactions</h3>
           {history.length === 0 ? <p style={{color:'var(--text-muted)'}}>No data found.</p> : 

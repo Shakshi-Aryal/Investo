@@ -71,10 +71,31 @@ const css = `
   .inv-hero h1 span { color: var(--accent); }
   .inv-hero p { font-size: 14px; color: var(--label); margin-top: 6px; }
   .inv-card { width: 100%; max-width: 440px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 28px 28px 24px; }
-  .inv-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  
+  .inv-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; position: relative; }
   .inv-label { font-size: 12px; font-weight: 500; letter-spacing: 0.4px; color: var(--label); text-transform: uppercase; }
+  
+  .inv-input-container { position: relative; width: 100%; }
   .inv-input { width: 100%; padding: 11px 14px; border-radius: 11px; border: 1px solid var(--input-border); background: var(--input-bg); color: inherit; font-family: 'DM Sans', sans-serif; font-size: 14px; transition: border-color 0.18s, box-shadow 0.18s; outline: none; }
   .inv-input:focus { border-color: var(--input-border-focus); box-shadow: 0 0 0 3px var(--accent-dim); }
+
+  .inv-eye-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px;
+    transition: color 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .inv-eye-btn:hover { color: var(--accent); }
+
   .inv-forgot { display: block; text-align: right; font-size: 13px; color: var(--accent); cursor: pointer; margin-top: -8px; margin-bottom: 16px; text-decoration: none; font-weight: 500; }
   .inv-forgot:hover { text-decoration: underline; }
   .inv-btn-submit { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
@@ -98,6 +119,7 @@ function InvestoLogin({ isDarkMode, setIsDarkMode }) {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ username: "", password: "" });
 
   const handleChange = (e) => {
@@ -171,28 +193,54 @@ function InvestoLogin({ isDarkMode, setIsDarkMode }) {
 
         <form onSubmit={handleSubmit} className="inv-card">
           {message && <div className="inv-msg-error">{message}</div>}
+          
           <div className="inv-field">
             <label className="inv-label">Username or Email</label>
-            <input className="inv-input" type="text" name="username" value={formData.username} onChange={handleChange} placeholder="Enter your credentials" required />
+            <div className="inv-input-container">
+              <input className="inv-input" type="text" name="username" value={formData.username} onChange={handleChange} placeholder="Enter your credentials" required />
+            </div>
           </div>
+
           <div className="inv-field">
             <label className="inv-label">Password</label>
-            <input className="inv-input" type="password" name="password" value={formData.password} onChange={handleChange} placeholder="••••••••" required />
+            <div className="inv-input-container">
+              <input 
+                className="inv-input" 
+                type={showPassword ? "text" : "password"} 
+                name="password" 
+                value={formData.password} 
+                onChange={handleChange} 
+                placeholder="••••••••" 
+                required 
+              />
+              <button 
+                type="button" 
+                className="inv-eye-btn" 
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? "HIDE" : "SHOW"}
+              </button>
+            </div>
           </div>
+
           <a className="inv-forgot" onClick={() => navigate("/pass")}>Forgot password?</a>
+          
           <button type="submit" className="inv-btn-submit" disabled={loading}>
             {loading ? <Spinner size={5} color="white" /> : "Sign In"}
           </button>
+
           <div className="inv-divider">
             <div className="inv-divider-line" />
             <span>or continue with</span>
             <div className="inv-divider-line" />
           </div>
+
           <button type="button" className="inv-btn-google" onClick={() => googleLogin()}>
             <img src={googlelogo} alt="Google" />
             Continue with Google
           </button>
         </form>
+
         <p className="inv-footer">
           Don't have an account? <a onClick={() => navigate("/register")}>Register</a>
         </p>

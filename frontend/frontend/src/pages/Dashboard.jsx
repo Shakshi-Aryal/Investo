@@ -121,10 +121,10 @@ function Dashboard() {
 
   const features = [
     { title: "My Profile", icon: "👤", desc: "Manage your identity, security settings, and preferences.", link: "/profile" },
-    { title: "Market Glossary", icon: "📖", desc: "Translate complex financial jargon into simple insights.", link: "/glossary" },
+    { title: "Glossary", icon: "📖", desc: "Translate complex financial jargon into simple insights.", link: "/glossary" },
     { title: "NEPSE Analysis", icon: "📈", desc: "Real-time candlestick charts and technical indicators.", link: "/stock-charts" },
-    { title: "Wealth Tracker", icon: "💰", desc: "Log income and expenses with automated categorization.", link: "/expense-tracker" },
-    { title: "Smart Portfolio", icon: "💼", desc: "Visualize your asset allocation and ROI performance.", link: "/portfolio" },
+    { title: "Expense Tracker", icon: "💰", desc: "Log income and expenses with automated categorization.", link: "/expense-tracker" },
+    { title: "Portfolio Management", icon: "💼", desc: "Visualize your asset allocation and ROI performance.", link: "/portfolio" },
     { title: "Alerts & Tasks", icon: "🔔", desc: "Never miss a dividend or a meeting with smart reminders.", link: "/reminders" },
     { title: "Global Markets", icon: "🌍", desc: "Stay ahead with Gold, Forex, and Economic headlines.", link: "/news" },
   ];
