@@ -14,6 +14,8 @@ from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from .models import Profile
+from django.utils import timezone
+from admin_portal.models import DailyUsageLog
 
 
 # ----------------------------
@@ -72,6 +74,14 @@ class LoginView(APIView):
 
         if not user.is_active:
             return Response({"error": "Please verify your email before logging in!"}, status=403)
+
+        # Log daily usage for admin stats
+        try:
+            log, _ = DailyUsageLog.objects.get_or_create(user=user, date=timezone.now().date())
+            log.login_count += 1
+            log.save()
+        except Exception as e:
+            print(f"Failed to log daily usage: {e}")
 
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -214,6 +224,14 @@ def google_login(request):
             "last_name": last_name,
             "is_active": True
         })
+
+        # Log daily usage for admin stats
+        try:
+            log, _ = DailyUsageLog.objects.get_or_create(user=user, date=timezone.now().date())
+            log.login_count += 1
+            log.save()
+        except Exception as e:
+            print(f"Failed to log daily usage: {e}")
 
         refresh = RefreshToken.for_user(user)
         return Response({

@@ -11,21 +11,20 @@ import Glossary from "./pages/Glossary";
 import Profile from "./pages/Profile";
 import StockCharts from "./pages/StockCharts";
 import ExpenseTracker from "./pages/ExpenseTracker";
-
-// Existing
 import ReminderCalendar from "./pages/ReminderCalendar";
-
-// NEW: NEWS PORTAL
 import NewsPortal from "./pages/NewsPortal";
-
-// NEW: PORTFOLIO MANAGEMENT
 import PortfolioManagement from "./pages/PortfolioManagement";
+
+// IMPORT YOUR ADMIN PAGE
+// Note: Using 'Admin' (capitalized) is standard React convention 
+// even if the filename is admin.jsx
+import Admin from "./pages/admin"; 
+import Community from "./pages/Community";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-
         {/* Redirect / → /register */}
         <Route path="/" element={<Navigate to="/register" />} />
 
@@ -33,6 +32,9 @@ export default function AppRoutes() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/pass" element={<ForgotPassword />} />
+
+        {/* Admin Portal - This fixes the blank page redirect */}
+        <Route path="/admin" element={<Admin />} />
 
         {/* Reset Password */}
         <Route path="/reset-password/:uidb64/:token" element={<ResetPassword />} />
@@ -65,8 +67,14 @@ export default function AppRoutes() {
         {/* NEWS & MARKETS */}
         <Route path="/news" element={<NewsPortal />} />
 
+        {/* Community Chat */}
+        <Route path="/community" element={<Community />} />
+
         {/* Email Verification */}
         <Route path="/verify-email/:uid/:token" element={<VerifyEmail />} />
+
+        {/* Optional: Catch-all for 404 Not Found to avoid future blank pages */}
+        <Route path="*" element={<div style={{ padding: "20px" }}>404 - Page Not Found</div>} />
 
       </Routes>
     </BrowserRouter>

@@ -5,12 +5,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-ppt=kvsd8m)&km75a#=_5y2$w@@3wxz9v@ww!8)**1ba98e1!5'
 DEBUG = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 # --------------------------
 # Application definition
 # --------------------------
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -23,6 +24,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_celery_beat',
+    'channels',
 
     # Your apps
     'accounts',
@@ -30,6 +32,8 @@ INSTALLED_APPS = [
     'reminders',
     'portfolio_management',
     'stocks',
+    'admin_portal',
+    'community',
 ]
 
 MIDDLEWARE = [
@@ -62,6 +66,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'investo_backend.wsgi.application'
+ASGI_APPLICATION = 'investo_backend.asgi.application'
 
 # --------------------------
 # Database (PostgreSQL)
@@ -138,3 +143,15 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = False # Use local time for scheduling
+
+# -------------------------
+# DJANGO CHANNELS CONFIG
+# -------------------------
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
