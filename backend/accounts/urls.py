@@ -5,9 +5,8 @@ from .views import (
     google_login,
     verify_email,
     profile_view,
-    nepse_proxy,
-    forgot_password,     # 🔹 forgot password view
-    reset_password       # 🔹 reset password view
+    forgot_password,
+    reset_password,
 )
 
 urlpatterns = [
@@ -16,11 +15,6 @@ urlpatterns = [
     path('google-login/', google_login, name='google-login'),
     path('verify-email/<uidb64>/<token>/', verify_email, name='verify-email'),
     path('profile/', profile_view, name='profile'),
-    
-    # NEPSE proxy
-    path('api/nepse/', nepse_proxy, name='nepse-proxy'),
-
-    # 🔹 Forgot/Reset Password
     path('forgot-password/', forgot_password, name='forgot-password'),
     path('reset-password/<uidb64>/<token>/', reset_password, name='reset-password'),
 ]

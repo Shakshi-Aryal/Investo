@@ -1,109 +1,252 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Bell, LogOut } from "lucide-react";
 import Darklogo from "../assets/Darklogo.png";
 import Lightlogo from "../assets/Lightlogo.png";
+import { useTheme } from "../context/ThemeContext";
+import ThemeToggle from "../components/ThemeToggle";
+import { useNotifications } from "../context/NotificationContext";
+import Footer from "../components/Footer";
 
-const layoutCss = `
-  .app-layout { display: flex; min-height: 100vh; transition: all 0.4s; }
+const navStyles = `
+  .floating-nav {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--card-border);
+    border-radius: 50px;
+    padding: 8px 16px;
+    z-index: 1000;
+    width: calc(100% - 48px);
+    max-width: 1000px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
   
-  /* Sidebar Styles */
-  .side-drawer {
-    position: fixed; top: 0; left: -300px; width: 280px; height: 100vh;
-    background: var(--card-bg); backdrop-filter: blur(25px);
-    border-right: 1px solid var(--card-border); z-index: 1000;
-    transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
-    padding: 100px 24px 40px; display: flex; flex-direction: column; gap: 12px;
+  .nav-links-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
-  .side-drawer.open { left: 0; box-shadow: 20px 0 60px rgba(0,0,0,0.2); }
-
-  /* Top Nav Styles (from Dashboard) */
-  .top-nav {
-    position: sticky; top: 0; width: 100%; max-width: 1200px; margin: 0 auto;
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 16px 24px; border-radius: 24px; background: var(--card-bg);
-    border: 1px solid var(--card-border); backdrop-filter: blur(10px); z-index: 900;
-    margin-bottom: 40px;
+  
+  .pill-link {
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .pill-link:hover {
+    color: var(--text-main);
+    background: var(--accent-dim);
+  }
+  
+  .pill-link.active {
+    background: var(--text-main);
+    color: var(--bg-main);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .nav-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  
+  .nav-icon-btn:hover {
+    background: var(--accent-dim);
+    color: var(--text-main);
+  }
+  
+  .nav-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: var(--danger-color);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .main-content { flex: 1; padding: 32px; display: flex; flex-direction: column; align-items: center; }
+  .main-wrapper {
+    padding-top: 100px; /* Space for floating nav */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    .nav-links-container { display: none; /* In a full app, we'd add a mobile hamburger menu here */ }
+  }
 `;
 
-export default function MainLayout({ children }) {
+export default function MainLayout({ children, isAdmin: propIsAdmin = false, isPublic = false }) {
+  const isLocalStorageAdmin = localStorage.getItem("is_admin") === "true";
+  const isAdmin = propIsAdmin || isLocalStorageAdmin;
   const navigate = useNavigate();
   const location = useLocation();
-  const [isNavOpen, setIsNavOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const { isDarkMode } = useTheme();
+  const { unreadCount } = useNotifications();
+  const [avatar, setAvatar] = useState(null);
 
   useEffect(() => {
-    localStorage.setItem("theme", JSON.stringify(isDarkMode));
-    window.dispatchEvent(new Event("storage")); // Syncs widgets
-  }, [isDarkMode]);
+    if (isPublic) return;
+    const fetchMiniProfile = async () => {
+      try {
+        const token = localStorage.getItem("jwt");
+        if (!token) return;
+        const res = await fetch("http://127.0.0.1:8000/api/profile/", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.avatar) setAvatar(data.avatar);
+        }
+      } catch (_) {}
+    };
+    fetchMiniProfile();
+  }, [location.pathname, isPublic]);
 
   const handleLogout = () => {
     localStorage.removeItem("jwt");
     navigate("/login");
   };
 
-  const navItems = [
-    { name: "Dashboard", path: "/dashboard", icon: "🏠" },
-    { name: "My Profile", path: "/profile", icon: "👤" },
-    { name: "Stock Charts", path: "/stock-charts", icon: "📈" },
-    { name: "Wealth Tracker", path: "/expense-tracker", icon: "💰" },
-    { name: "Knowledge", path: "/glossary", icon: "📖" },
+  const authenticatedNavItems = isAdmin ? [
+    { name: "Admin Portal", path: "/admin" },
+    { name: "Community", path: "/community" },
+    { name: "Settings", path: "/settings" },
+  ] : [
+    { name: "Dashboard", path: "/dashboard" },
+    { name: "Portfolio", path: "/portfolio" },
+    { name: "Tracker", path: "/expense-tracker" },
+    { name: "Markets", path: "/market" },
+    { name: "Community", path: "/community" },
   ];
 
+  const publicNavItems = [
+    { name: "Portfolio Tracking", path: "/features/portfolio" },
+    { name: "Expense Manager", path: "/features/expenses" },
+    { name: "Market Insights", path: "/features/market" },
+    { name: "Community", path: "/features/community" },
+  ];
+
+  const navItems = isPublic ? publicNavItems : authenticatedNavItems;
+
   return (
-    <div className={`app-layout ${isDarkMode ? "dash-dark mode-dark" : "dash-light mode-light"}`}>
-      <style>{layoutCss}</style>
-
-      {/* ── SIDEBAR ── */}
-      <div className={`side-drawer ${isNavOpen ? "open" : ""}`}>
-        <h2 style={{ fontFamily: "Syne", padding: "0 20px 30px", fontSize: "28px" }}>Investo<span>.</span></h2>
-        {navItems.map((item) => (
-          <div 
-            key={item.path} 
-            className={`nav-item ${location.pathname === item.path ? "active" : ""}`} 
-            onClick={() => { navigate(item.path); setIsNavOpen(false); }}
-          >
-            {item.icon} {item.name}
-          </div>
-        ))}
-      </div>
-
-      {/* ── MAIN AREA ── */}
-      <main className="main-content">
-        {/* ── TOP NAV ── */}
-        <header className="top-nav">
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="dash-btn-circle" onClick={() => setIsNavOpen(!isNavOpen)}>
-              {isNavOpen ? "✕" : "☰"}
-            </button>
-            <button className="dash-btn-circle" onClick={() => navigate(-1)}>←</button>
-          </div>
-
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <button className="dash-btn-circle logout-trigger" onClick={handleLogout} title="Sign Out">⎋</button>
-            <button className="dash-btn-circle" onClick={() => setIsDarkMode(!isDarkMode)}>
-              {isDarkMode ? "☀️" : "🌙"}
-            </button>
-            <img src={isDarkMode ? Darklogo : Lightlogo} alt="Investo" style={{ height: "20px", margin: "0 8px" }} />
-            <img
-              src="https://i.pravatar.cc/150?u=investo"
-              alt="User"
-              style={{ width: "40px", height: "40px", borderRadius: "12px", border: "1px solid var(--card-border)", cursor: 'pointer' }}
-              onClick={() => navigate("/profile")}
-            />
-          </div>
-        </header>
-
-        {/* Page Content goes here */}
-        <div className="dash-container">
-            {children}
+    <>
+      <style>{navStyles}</style>
+      
+      {/* ── FLOATING TOP NAV ── */}
+      <header className="floating-nav">
+        {/* Left: Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', paddingLeft: 8 }} onClick={() => navigate(isPublic ? '/' : '/dashboard')}>
+          <img src={isDarkMode ? Darklogo : Lightlogo} alt="Investo" style={{ height: "22px" }} />
         </div>
+
+        {/* Center: Links */}
+        <nav className="nav-links-container">
+          {navItems.map(item => (
+            <div 
+              key={item.name}
+              className={`pill-link ${(location.pathname === item.path && !isPublic) ? 'active' : ''}`}
+              onClick={() => {
+                navigate(item.path);
+              }}
+            >
+              {item.name}
+            </div>
+          ))}
+        </nav>
+
+        {/* Right: Actions */}
+        <div className="nav-actions">
+          <div style={{ transform: 'scale(0.85)' }}>
+            <ThemeToggle />
+          </div>
+
+          {isPublic ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 8 }}>
+              <button 
+                onClick={() => navigate("/login")}
+                style={{ background: "transparent", border: "none", color: "var(--text-main)", fontWeight: 600, fontSize: 13, cursor: "pointer", padding: "8px 12px", borderRadius: 20 }}
+              >
+                Sign In
+              </button>
+              <button 
+                onClick={() => navigate("/register")}
+                style={{ background: "var(--accent)", color: "#fff", border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer", padding: "8px 16px", borderRadius: 20, boxShadow: "0 4px 12px var(--accent-glow)" }}
+              >
+                Get Started
+              </button>
+            </div>
+          ) : (
+            <>
+              <button className="nav-icon-btn" onClick={() => navigate("/notifications")} title="Notifications">
+                <Bell size={18} />
+                {unreadCount > 0 && <span className="nav-badge">{unreadCount}</span>}
+              </button>
+
+              <button className="nav-icon-btn" onClick={handleLogout} title="Sign Out" style={{ color: 'var(--danger-color)' }}>
+                <LogOut size={18} />
+              </button>
+
+              <img
+                src={avatar || "https://i.pravatar.cc/150?u=investo"}
+                alt="User Profile"
+                title="Profile"
+                style={{ width: "36px", height: "36px", borderRadius: "50%", border: "2px solid var(--card-border)", cursor: 'pointer', objectFit: 'cover' }}
+                onClick={() => navigate("/profile")}
+              />
+            </>
+          )}
+        </div>
+      </header>
+
+      {/* ── MAIN CONTENT AREA ── */}
+      <main className="main-wrapper">
+        <div style={{ width: '100%', maxWidth: '1200px', padding: '0 24px 40px', flex: 1 }}>
+          {children}
+        </div>
+        <Footer />
       </main>
-    </div>
+    </>
   );
 }

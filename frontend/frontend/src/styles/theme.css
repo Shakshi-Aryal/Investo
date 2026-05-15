@@ -1,0 +1,346 @@
+/* src/styles/theme.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* Fonts */
+  --font-primary: 'Inter', sans-serif;
+  --font-heading: 'Inter', sans-serif;
+
+  /* Global Settings */
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 24px;
+  --transition-speed: 0.35s;
+
+  /* Accent Colors (Premium SaaS) */
+  --color-blue: #3B82F6;
+  --color-orange: #F97316;
+  --color-pink: #EC4899;
+  --color-green: #10B981;
+  --color-red: #EF4444;
+  --color-purple: #8B5CF6;
+}
+
+/* Light Theme Variables */
+:root[data-theme="light"] {
+  --bg-main: #f4f6f8;
+  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  
+  --accent: #3B82F6;
+  --accent-hover: #2563EB;
+  --accent-dim: rgba(59, 130, 246, 0.1);
+  --accent-glow: rgba(59, 130, 246, 0.15);
+
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(148, 163, 184, 0.2);
+  
+  --input-bg: #ffffff;
+  --input-border: rgba(148, 163, 184, 0.3);
+  --input-border-focus: #3B82F6;
+
+  --panel-bg: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  --divider: rgba(148, 163, 184, 0.2);
+  
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-color: #10B981;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --danger-color: #EF4444;
+}
+
+/* Dark Theme Variables */
+:root[data-theme="dark"] {
+  --bg-main: #020617;
+  --bg-gradient: radial-gradient(circle at top, #0f172a 0%, #020617 100%);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  
+  --accent: #3B82F6;
+  --accent-hover: #60A5FA;
+  --accent-dim: rgba(59, 130, 246, 0.15);
+  --accent-glow: rgba(59, 130, 246, 0.3);
+
+  --card-bg: rgba(15, 23, 42, 0.6);
+  --card-border: rgba(148, 163, 184, 0.15);
+  
+  --input-bg: rgba(2, 6, 23, 0.5);
+  --input-border: rgba(148, 163, 184, 0.2);
+  --input-border-focus: #3B82F6;
+
+  --panel-bg: linear-gradient(145deg, #0f172a 0%, #020617 100%);
+  --divider: rgba(148, 163, 184, 0.15);
+  
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --success-color: #34D399;
+  --danger-bg: rgba(239, 68, 68, 0.15);
+  --danger-color: #F87171;
+}
+
+/* Base Styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-primary);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-main);
+  min-height: 100vh;
+  transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+* { box-sizing: border-box; }
+
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
+
+/* Global Reusable Utility Classes */
+.heading-gradient {
+  background: linear-gradient(90deg, var(--accent), var(--color-pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.inv-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-family: var(--font-primary);
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.inv-input:focus {
+  border-color: var(--input-border-focus);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.inv-btn-primary {
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: var(--border-radius-md);
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.inv-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+.inv-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ─────────────────────────────────────────────────────
+   BENTO DASHBOARD DESIGN SYSTEM
+   ───────────────────────────────────────────────────── */
+
+/* Glass layers */
+.glass-strong {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 24px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s, border-color 0.3s;
+}
+.glass-strong:hover {
+  border-color: var(--accent);
+  box-shadow: 0 12px 48px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Bento grid system */
+.bento-grid {
+  display: grid;
+  gap: 24px;
+  width: 100%;
+}
+.bento-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.bento-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.bento-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 1024px) {
+  .bento-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .bento-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .bento-grid-2, .bento-grid-3, .bento-grid-4 { grid-template-columns: 1fr; }
+}
+
+/* Metric typography */
+.metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.metric-huge {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.1;
+  letter-spacing: -1px;
+}
+.metric-medium {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+/* Micro-badge */
+.micro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.micro-badge-success { background: var(--success-bg); color: var(--success-color); }
+.micro-badge-danger { background: var(--danger-bg); color: var(--danger-color); }
+.micro-badge-accent { background: var(--accent-dim); color: var(--accent); }
+
+/* Category progress bars */
+.category-bar-track {
+  width: 100%; height: 8px; border-radius: 4px; background: var(--input-bg); overflow: hidden;
+}
+.category-bar-fill {
+  height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* Page header */
+.page-header { margin-bottom: 32px; text-align: center; }
+.page-header h1 { font-family: var(--font-heading); font-size: clamp(32px, 5vw, 48px); font-weight: 800; letter-spacing: -1px; margin: 0; }
+.page-header p { color: var(--text-muted); font-size: 16px; margin-top: 8px; }
+
+/* Section divider */
+.section-title { font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 20px; }
+
+/* Pill toggle buttons */
+.pill-toggle-group {
+  display: inline-flex; gap: 4px; background: var(--input-bg);
+  border: 1px solid var(--card-border); border-radius: 20px; padding: 4px;
+}
+.pill-toggle {
+  padding: 8px 16px; border: none; background: transparent; color: var(--text-muted);
+  font-family: var(--font-heading); font-weight: 600; font-size: 13px; cursor: pointer;
+  border-radius: 16px; transition: all 0.2s;
+}
+.pill-toggle.active { background: var(--accent); color: white; box-shadow: 0 4px 12px var(--accent-glow); }
+
+/* Form group styling */
+.bento-form-group { display: flex; flex-direction: column; gap: 8px; }
+.bento-form-group label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+
+/* Entrance animation */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.animate-in { animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Circular progress ring */
+.progress-ring-bg { fill: none; stroke: var(--input-bg); stroke-width: 8; }
+.progress-ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Confirmation Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000;
+}
+.modal-content {
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-lg); padding: 32px;
+  width: 90%; max-width: 400px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+.modal-icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--danger-bg); color: var(--danger-color);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px; font-size: 24px;
+}
+.modal-title {
+  font-family: var(--font-heading); font-size: 20px; font-weight: 700;
+  color: var(--text-main); margin-bottom: 8px;
+}
+.modal-desc {
+  font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5;
+}
+.modal-actions {
+  display: flex; gap: 12px;
+}
+.modal-btn-cancel {
+  flex: 1; padding: 12px; border-radius: var(--border-radius-md);
+  background: var(--input-bg); color: var(--text-main); border: 1px solid var(--input-border);
+  font-family: var(--font-heading); font-weight: 600; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+}
+.modal-btn-cancel:hover { background: var(--card-border); }
+.modal-btn-confirm {
+  flex: 1; padding: 12px; border-radius: var(--border-radius-md);
+  background: var(--danger-color); color: #fff; border: none;
+  font-family: var(--font-heading); font-weight: 600; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+}
+.modal-btn-confirm:hover { filter: brightness(1.1); }
+
+/* Floating Label Inputs */
+.floating-input-group {
+  position: relative;
+  width: 100%;
+}
+.floating-input {
+  width: 100%;
+  padding: 16px 16px 8px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-family: var(--font-primary);
+  font-size: 15px;
+  transition: all 0.2s;
+  outline: none;
+}
+.floating-input:focus {
+  border-color: var(--input-border-focus);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.floating-label {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.floating-input:focus ~ .floating-label,
+.floating-input:not(:placeholder-shown) ~ .floating-label {
+  top: 12px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}

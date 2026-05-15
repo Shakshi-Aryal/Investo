@@ -1,30 +1,52 @@
-import { Instagram, Mail, Phone } from "lucide-react";
-import logo from "../assets/mainlogo.png";
+import React from "react";
+import { Link } from "react-router-dom";
+import { Shield, Lock, FileText } from "lucide-react";
 
-const Footer = () => {
+export default function Footer() {
   return (
-    <footer className="bg-[#0F0505] text-white py-12 px-6 mt-20">
-      <div className="max-w-7xl mx-auto md:grid-cols-2 gap-8 justify-items-center">
-        {/* Logo and Contact (Center) */}
-        <img src={logo} alt="FitForge Logo" className="h-12 mb-4" />
-        <p className="flex items-center gap-2 text-sm">Kathmandu, Nepal</p>
-        <p className="flex items-center gap-2 text-sm mt-2">
-            <Phone className="w-4 h-4" /> +977 9801234567
-        </p>
-        <p className="flex items-center gap-2 text-sm">
-            <Mail className="w-4 h-4" /> info@fitforge.com
-        </p>
-        <p className="flex items-center gap-2 text-sm">
-            <Instagram className="w-4 h-4" /> info@fitforge.com
-        </p>
+    <footer style={{
+      marginTop: "auto",
+      padding: "48px 24px 24px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      borderTop: "1px solid var(--divider)",
+      background: "var(--bg-main)"
+    }}>
+      <div style={{
+        display: "flex",
+        gap: 32,
+        marginBottom: 24,
+        flexWrap: "wrap",
+        justifyContent: "center"
+      }}>
+        <Link to="/about" style={{
+          color: "var(--text-muted)", textDecoration: "none", fontSize: 14, fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 8, transition: "color 0.2s"
+        }} onMouseEnter={e => e.target.style.color = "var(--text-main)"} onMouseLeave={e => e.target.style.color = "var(--text-muted)"}>
+          <Shield size={16} /> About Us
+        </Link>
+        <Link to="/privacy" style={{
+          color: "var(--text-muted)", textDecoration: "none", fontSize: 14, fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 8, transition: "color 0.2s"
+        }} onMouseEnter={e => e.target.style.color = "var(--text-main)"} onMouseLeave={e => e.target.style.color = "var(--text-muted)"}>
+          <Lock size={16} /> Privacy Policy
+        </Link>
+        <Link to="/terms" style={{
+          color: "var(--text-muted)", textDecoration: "none", fontSize: 14, fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 8, transition: "color 0.2s"
+        }} onMouseEnter={e => e.target.style.color = "var(--text-main)"} onMouseLeave={e => e.target.style.color = "var(--text-muted)"}>
+          <FileText size={16} /> Terms of Service
+        </Link>
       </div>
 
-      <p className="text-center text-gray-500 text-xs mt-10">
-        © {new Date().getFullYear()} FitForge. All rights reserved.
-      </p>
+      <div style={{
+        fontSize: 13,
+        color: "var(--text-muted)",
+        textAlign: "center"
+      }}>
+        &copy; {new Date().getFullYear()} Investo. All rights reserved.
+      </div>
     </footer>
-
   );
-};
-
-export default Footer;
+}

@@ -1,280 +1,173 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Pie, Bar } from "react-chartjs-2";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { AlertCircle, Trash2, TrendingUp, Download, Plus } from "lucide-react";
-import Darklogo from "../assets/Darklogo.png";
-import Lightlogo from "../assets/Lightlogo.png";
-
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  ArcElement,
-  BarElement,
-  Tooltip,
-  Legend,
-} from "chart.js";
-
-ChartJS.register(CategoryScale, LinearScale, ArcElement, BarElement, Tooltip, Legend);
+import { AlertCircle, Trash2, Download, Plus, TrendingUp, TrendingDown, ArrowUpRight, RotateCcw } from "lucide-react";
+import MainLayout from "../layouts/MainLayout";
 
 const API_URL = "http://127.0.0.1:8000/api/portfolio/";
 const TOKEN_KEY = "jwt";
 
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap');
+/* ── Circular progress ring ──────────────────────────────────── */
+function ProgressRing({ value, size = 72, color = "var(--accent)" }) {
+  const clamp = Math.min(Math.max(value, 0), 100);
+  const r = (size - 12) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (clamp / 100) * circ;
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+      <circle className="progress-ring-bg" cx={size/2} cy={size/2} r={r} />
+      <circle
+        className="progress-ring-fill"
+        cx={size/2} cy={size/2} r={r}
+        stroke={color}
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+      />
+    </svg>
+  );
+}
 
-  .feat-root {
-    font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
-    padding: 32px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    box-sizing: border-box;
-    max-width: 100vw;
-    overflow-x: hidden;
-  }
+/* ── Custom recharts tooltip ─────────────────────────────────── */
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{
+      background: "var(--card-bg)", backdropFilter: "blur(12px)",
+      border: "1px solid var(--card-border)", borderRadius: 12,
+      padding: "12px 16px", fontSize: 13,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.1)"
+    }}>
+      <p style={{ fontWeight: 700, marginBottom: 4, color: "var(--text-main)" }}>{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color, fontWeight: 600, margin: "2px 0" }}>
+          {p.name}: Rs.{typeof p.value === "number" ? p.value.toLocaleString() : p.value}
+        </p>
+      ))}
+    </div>
+  );
+}
 
-  .mode-dark {
-    background: radial-gradient(circle at top right, #1a0508, #080306);
-    color: #ffffff;
-    --accent: #D90A14;
-    --accent-glow: rgba(217, 10, 20, 0.15);
-    --card-bg: rgba(255, 255, 255, 0.03);
-    --card-border: rgba(217, 10, 20, 0.15);
-    --input-bg: rgba(255, 255, 255, 0.05);
-    --text-muted: #9a7a7c;
-    --table-head: rgba(255, 255, 255, 0.05);
-    --error: #ff4d4d;
-  }
+/* ── Stagger animation config ────────────────────────────────── */
+const containerVariants = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.4, 0, 0.2, 1] } },
+};
 
-  .mode-light {
-    background: radial-gradient(circle at top right, #fff5e6, #faf8f3);
-    color: #1a1208;
-    --accent: #BA7517;
-    --accent-glow: rgba(186, 117, 23, 0.1);
-    --card-bg: rgba(255, 255, 255, 0.7);
-    --card-border: rgba(186, 117, 23, 0.2);
-    --input-bg: #ffffff;
-    --text-muted: #8a6a3a;
-    --table-head: rgba(186, 117, 23, 0.05);
-    --error: #d93025;
-  }
+/* High contrast premium colors */
+const CHART_COLORS = [
+  "var(--accent)", "var(--color-orange)", "var(--color-pink)", 
+  "var(--color-green)", "var(--color-purple)", "var(--color-red)"
+];
 
-  .dash-header {
-    width: 100%; max-width: 1200px; display: flex; justify-content: space-between;
-    align-items: center; margin-bottom: 30px; backdrop-filter: blur(10px);
-    padding: 16px 24px; border-radius: 24px; background: var(--card-bg);
-    border: 1px solid var(--card-border); z-index: 1001;
-    box-sizing: border-box;
-  }
-
-  .dash-btn-circle {
-    width: 42px; height: 42px; border-radius: 12px; background: var(--input-bg);
-    border: 1px solid var(--card-border); cursor: pointer; display: flex;
-    align-items: center; justify-content: center; transition: 0.2s; color: inherit;
-  }
-  .dash-btn-circle:hover { background: var(--accent); color: white; border-color: var(--accent); }
-
-  .nav-trigger {
-    width: 42px; height: 42px; border-radius: 12px; background: var(--input-bg);
-    border: 1px solid var(--card-border); cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  }
-  .bar { width: 18px; height: 2px; background: var(--accent); border-radius: 2px; transition: 0.3s; }
-
-  .side-drawer {
-    position: fixed; top: 0; left: -320px; width: 300px; height: 100vh;
-    background: var(--card-bg); backdrop-filter: blur(25px);
-    border-right: 1px solid var(--card-border); z-index: 1000;
-    transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
-    padding: 100px 24px 40px; display: flex; flex-direction: column; gap: 12px;
-  }
-  .side-drawer.open { left: 0; box-shadow: 20px 0 60px rgba(0,0,0,0.2); }
-
-  .nav-item {
-    padding: 14px 20px; border-radius: 14px; color: var(--text-muted);
-    font-weight: 600; cursor: pointer; transition: all 0.2s;
-    display: flex; align-items: center; gap: 12px; font-family: 'Syne', sans-serif;
-  }
-  .nav-item:hover, .nav-item.active { background: var(--accent-glow); color: var(--accent); transform: translateX(5px); }
-
-  .portfolio-container { 
-    width: 100%; 
-    max-width: 1200px; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 24px;
-    box-sizing: border-box;
-  }
-  
-  .glass-card {
-    background: var(--card-bg); 
-    border: 1px solid var(--card-border);
-    border-radius: 24px; 
-    padding: 24px; 
-    backdrop-filter: blur(10px);
-    overflow: hidden;
-  }
-
-  .stat-val { 
-    font-size: clamp(1.4rem, 4vw, 28px);
-    font-weight: 800; 
-    font-family: 'Syne', sans-serif;
-    word-break: break-all;
-  }
-
-  .invest-form {
-    display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px; 
-    margin-bottom: 10px;
-  }
-
-  .input-group { display: flex; flex-direction: column; }
-
-  .invest-input {
-    padding: 14px 18px; border-radius: 14px; background: var(--input-bg);
-    border: 1px solid var(--card-border); color: inherit; outline: none;
-    transition: 0.3s; width: 100%; box-sizing: border-box;
-  }
-  .invest-input:focus { border-color: var(--accent); }
-  .invest-input.error { border-color: var(--error); background: rgba(255, 77, 77, 0.05); }
-
-  .error-text {
-    color: var(--error); font-size: 11px; margin-top: 5px; font-weight: 600;
-    display: flex; align-items: center; gap: 4px;
-  }
-
-  .btn-main {
-    padding: 14px 24px; border-radius: 14px; border: none; font-weight: 700;
-    cursor: pointer; transition: 0.3s; font-family: 'Syne', sans-serif;
-    color: white; height: 50px;
-  }
-  .btn-main:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
-
-  .modern-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-  .modern-table th { background: var(--table-head); padding: 16px; font-family: 'Syne', sans-serif; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; color: var(--accent); border-bottom: 2px solid var(--card-border); }
-  .modern-table td { padding: 16px; border-bottom: 1px solid var(--card-border); transition: 0.3s; }
-  .modern-table tr:hover td { background: var(--accent-glow); }
-
-  .badge-profit { color: #10B981; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 6px; font-weight: 700; }
-  .badge-loss { color: #EF4444; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 6px; font-weight: 700; }
-
-  .table-wrapper { width: 100%; overflow-x: auto; border-radius: 16px; }
-
-  @media (max-width: 768px) { .feat-root { padding: 16px; } }
-`;
-
-function PortfolioManagement() {
-  const navigate = useNavigate();
-  const location = useLocation();
+export default function PortfolioManagement() {
   const token = localStorage.getItem(TOKEN_KEY);
+  const [portfolio, setPortfolio] = useState([]);
 
-  const [isDarkMode, setIsDarkMode] = useState(() => JSON.parse(localStorage.getItem("theme") || "true"));
-  const [isNavOpen, setIsNavOpen] = useState(false);
-  
-  // Input States
+  // Form states
   const [investmentName, setInvestmentName] = useState("");
   const [capital, setCapital] = useState("");
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [timePeriod, setTimePeriod] = useState("");
-  
-  // Validation States
-  const [errors, setErrors] = useState({ capital: "", amount: "", time: "" });
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
-  const [portfolio, setPortfolio] = useState([]);
-  const [showCharts, setShowCharts] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem("theme", JSON.stringify(isDarkMode));
-    window.dispatchEvent(new Event("storage"));
-  }, [isDarkMode]);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const fetchPortfolio = async () => {
     try {
-      const res = await fetch(API_URL, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(API_URL, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) setPortfolio(await res.json());
     } catch (err) { console.error(err); }
   };
 
   useEffect(() => { if (token) fetchPortfolio(); }, [token]);
 
-  // Validation Handler
+  const visiblePortfolio = useMemo(() => {
+    return portfolio;
+  }, [portfolio]);
+
+  // ── Computed stats ────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const totalCapital = visiblePortfolio.reduce((s, p) => s + p.total_capital, 0);
+    const totalValue = visiblePortfolio.reduce((s, p) => s + p.investment_amount, 0);
+    const netProfit = totalValue - totalCapital;
+    const profitPct = totalCapital > 0 ? ((netProfit / totalCapital) * 100) : 0;
+    const avgROI = visiblePortfolio.length > 0 ? visiblePortfolio.reduce((s, p) => s + (p.roi || 0), 0) / visiblePortfolio.length : 0;
+    return { totalCapital, totalValue, netProfit, profitPct, avgROI };
+  }, [visiblePortfolio]);
+
+  // ── Chart data ────────────────────────────────────────────────
+  const roiChartData = visiblePortfolio.map(p => ({
+    name: p.investment_name.length > 12 ? p.investment_name.slice(0, 12) + "…" : p.investment_name,
+    ROI: parseFloat((p.roi || 0).toFixed(1)),
+  }));
+
+  const pieData = visiblePortfolio.map(p => ({
+    name: p.investment_name,
+    value: p.total_capital,
+  }));
+
+  const growthData = visiblePortfolio.map((p, i) => ({
+    name: p.investment_name.length > 10 ? p.investment_name.slice(0, 10) + "…" : p.investment_name,
+    Capital: p.total_capital,
+    Value: p.investment_amount,
+  }));
+
+  // ── Validation ────────────────────────────────────────────────
   const validateField = (name, value) => {
-    let errorMsg = "";
-    if (value !== "" && parseFloat(value) <= 0) {
-      errorMsg = "Must be greater than 0";
-    }
-    setErrors(prev => ({ ...prev, [name]: errorMsg }));
+    let msg = "";
+    if (value !== "" && parseFloat(value) <= 0) msg = "Must be greater than 0";
+    setErrors(prev => ({ ...prev, [name]: msg }));
   };
+  const hasErrors = errors.capital || errors.amount || errors.time;
 
   const addPortfolio = async (e) => {
     e.preventDefault();
-    
-    // Final logic check
-    if (parseFloat(capital) <= 0 || parseFloat(investmentAmount) <= 0 || parseInt(timePeriod) <= 0) {
-      alert("All numerical values must be positive.");
-      return;
-    }
-
+    if (parseFloat(capital) <= 0 || parseFloat(investmentAmount) <= 0 || parseInt(timePeriod) <= 0) return;
+    setSubmitting(true);
     try {
-      const item = {
-        investment_name: investmentName,
-        total_capital: parseFloat(capital),
-        investment_amount: parseFloat(investmentAmount),
-        estimated_return_per_year: 10,
-        time_period: parseInt(timePeriod),
-      };
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(item),
+        body: JSON.stringify({
+          investment_name: investmentName,
+          total_capital: parseFloat(capital),
+          investment_amount: parseFloat(investmentAmount),
+          estimated_return_per_year: 10,
+          time_period: parseInt(timePeriod),
+        }),
       });
       if (res.ok) {
         setInvestmentName(""); setCapital(""); setInvestmentAmount(""); setTimePeriod("");
-        setErrors({ capital: "", amount: "", time: "" });
+        setErrors({});
         fetchPortfolio();
       }
     } catch (err) { console.error(err); }
+    finally { setSubmitting(false); }
   };
 
-  const deletePortfolio = async (id) => {
-    if (!window.confirm("Remove this entry?")) return;
+  // ── Confirmation Modal Logic ─────────────────────────────────
+  const handleDeleteRequest = (id, name) => {
+    setItemToDelete({ id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
     try {
-      await fetch(`${API_URL}${id}/`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await fetch(`${API_URL}${itemToDelete.id}/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      setItemToDelete(null);
       fetchPortfolio();
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Deletion failed", err); }
   };
 
-  // Stats calculation
-  const totalCapital = portfolio.reduce((sum, p) => sum + p.total_capital, 0);
-  const totalInvestment = portfolio.reduce((sum, p) => sum + p.investment_amount, 0);
-  const netProfit = totalInvestment - totalCapital;
-  const avgROI = portfolio.length > 0 ? portfolio.reduce((sum, p) => sum + p.roi, 0) / portfolio.length : 0;
-
-  const roiData = {
-    labels: portfolio.map(p => p.investment_name),
-    datasets: [{
-      label: 'ROI %',
-      data: portfolio.map(p => p.roi),
-    }]
-  };
-
-  const capitalPie = {
-    labels: portfolio.map(p => p.investment_name),
-    datasets: [{
-      data: portfolio.map(p => p.total_capital),
-      backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
-    }]
+  const cancelDelete = () => {
+    setItemToDelete(null);
   };
 
   const generatePDF = () => {
@@ -283,173 +176,341 @@ function PortfolioManagement() {
     autoTable(doc, {
       startY: 30,
       head: [["Investment", "Capital", "Value", "Profit/Loss", "ROI %"]],
-      body: portfolio.map((p) => [
-        p.investment_name, 
-        p.total_capital, 
-        p.investment_amount, 
-        (p.investment_amount - p.total_capital).toFixed(2),
-        p.roi.toFixed(2) + "%"
+      body: visiblePortfolio.map(p => [
+        p.investment_name,
+        `Rs.${p.total_capital.toLocaleString()}`,
+        `Rs.${p.investment_amount.toLocaleString()}`,
+        `Rs.${(p.investment_amount - p.total_capital).toFixed(0)}`,
+        `${(p.roi || 0).toFixed(1)}%`,
       ]),
     });
     doc.save("Investo_Portfolio.pdf");
   };
 
-  const navItems = [
-    { name: "Dashboard", path: "/dashboard", icon: "🏠" },
-    { name: "My Profile", path: "/profile", icon: "👤" },
-    { name: "Stock Charts", path: "/stock-charts", icon: "📈" },
-    { name: "Portfolio", path: "/portfolio", icon: "💼" },
-    { name: "Reminders", path: "/reminders", icon: "⏰" },
-  ];
-
-  const hasErrors = errors.capital || errors.amount || errors.time;
+  const isProfit = stats.netProfit >= 0;
 
   return (
-    <div className={`feat-root ${isDarkMode ? "mode-dark" : "mode-light"}`}>
-      <style>{css}</style>
+    <MainLayout>
+      <motion.div
+        style={{ width: "100%", display: "flex", flexDirection: "column", gap: 24 }}
+        variants={containerVariants} initial="hidden" animate="show"
+      >
+        {/* ── PAGE HEADER ────────────────────────────────────── */}
+        <motion.div className="page-header" variants={cardVariants}>
+          <h1>Portfolio <span className="heading-gradient">Performance</span></h1>
+          <p>Track assets, ROI, and historical growth</p>
+        </motion.div>
 
-      <header className="dash-header">
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="nav-trigger" onClick={() => setIsNavOpen(!isNavOpen)}>
-            <div className="bar" /><div className="bar" /><div className="bar" />
-          </button>
-          <button className="dash-btn-circle" onClick={() => navigate(-1)}>←</button>
-        </div>
-        <img src={isDarkMode ? Darklogo : Lightlogo} alt="Investo" style={{ height: '24px' }} />
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button className="dash-btn-circle" onClick={() => setIsDarkMode(!isDarkMode)}>
-            {isDarkMode ? "☀️" : "🌙"}
-          </button>
-          <img src="https://i.pravatar.cc/150?u=investo" style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--card-border)' }} alt="User" />
-        </div>
-      </header>
-
-      <div className={`side-drawer ${isNavOpen ? 'open' : ''}`}>
-        <h2 style={{ fontFamily: 'Syne', padding: '0 20px 30px', fontSize: '28px' }}>Investo<span>.</span></h2>
-        {navItems.map(item => (
-          <div key={item.path} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-            {item.icon} {item.name}
-          </div>
-        ))}
-      </div>
-
-      <main className="portfolio-container">
-        <h1 style={{ fontFamily: 'Syne', fontSize: '32px' }}>Portfolio <span style={{color:'var(--accent)'}}>Management</span></h1>
-
-        <section className="glass-card">
-          <form onSubmit={addPortfolio} className="invest-form">
-            <div className="input-group">
-                <input className="invest-input" placeholder="Investment Name" value={investmentName} onChange={(e) => setInvestmentName(e.target.value)} required />
-            </div>
-
-            <div className="input-group">
-                <input className={`invest-input ${errors.capital ? 'error' : ''}`} type="number" placeholder="Total Capital" value={capital} 
-                    onChange={(e) => { setCapital(e.target.value); validateField('capital', e.target.value); }} required />
-                {errors.capital && <span className="error-text"><AlertCircle size={10}/> {errors.capital}</span>}
-            </div>
-
-            <div className="input-group">
-                <input className={`invest-input ${errors.amount ? 'error' : ''}`} type="number" placeholder="Current Value" value={investmentAmount} 
-                    onChange={(e) => { setInvestmentAmount(e.target.value); validateField('amount', e.target.value); }} required />
-                {errors.amount && <span className="error-text"><AlertCircle size={10}/> {errors.amount}</span>}
-            </div>
-
-            <div className="input-group">
-                <input className={`invest-input ${errors.time ? 'error' : ''}`} type="number" placeholder="Years" value={timePeriod} 
-                    onChange={(e) => { setTimePeriod(e.target.value); validateField('time', e.target.value); }} required />
-                {errors.time && <span className="error-text"><AlertCircle size={10}/> {errors.time}</span>}
-            </div>
-
-            <button className="btn-main" style={{ background: 'var(--accent)' }} disabled={hasErrors || !capital || !investmentAmount}>
-                Add Entry
-            </button>
-          </form>
-        </section>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-          <div className="glass-card">
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>Initial Capital</p>
-            <p className="stat-val" style={{ color: '#3B82F6' }}>Rs.{Math.round(totalCapital).toLocaleString()}</p>
-          </div>
-          <div className="glass-card">
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>Current Value</p>
-            <p className="stat-val" style={{ color: '#10B981' }}>Rs.{Math.round(totalInvestment).toLocaleString()}</p>
-          </div>
-          <div className="glass-card" style={{ border: netProfit >= 0 ? '1px solid #10B981' : '1px solid #EF4444' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>Net Profit/Loss</p>
-            <p className="stat-val" style={{ color: netProfit >= 0 ? '#10B981' : '#EF4444' }}>
-              {netProfit >= 0 ? "+" : ""}Rs.{Math.round(netProfit).toLocaleString()}
+        {/* ── METRICS BENTO ROW ──────────────────────────────── */}
+        <motion.div className="bento-grid bento-grid-4" variants={cardVariants}>
+          {/* Initial Capital */}
+          <div className="glass-strong">
+            <p className="metric-label">Invested Capital</p>
+            <p className="metric-huge" style={{ color: "var(--accent)" }}>
+              <span style={{ fontSize: "0.5em", fontWeight: 600, opacity: 0.7 }}>Rs.</span>
+              {Math.round(stats.totalCapital).toLocaleString()}
             </p>
+            <span className="micro-badge micro-badge-accent" style={{ marginTop: 12 }}>
+              {visiblePortfolio.length} active assets
+            </span>
           </div>
-          <div className="glass-card">
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '8px' }}>Avg ROI</p>
-            <p className="stat-val" style={{ color: '#F59E0B' }}>{avgROI.toFixed(1)}%</p>
-          </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <button className="btn-main" style={{ background: '#3B82F6' }} onClick={() => setShowCharts(!showCharts)}>
-            {showCharts ? "Hide Analytics" : "View Analytics"}
-          </button>
-          <button className="btn-main" style={{ background: '#10B981' }} onClick={generatePDF}>Export PDF</button>
-        </div>
-
-        {showCharts && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-            <div className="glass-card"><Bar data={{ ...roiData, datasets: [{ ...roiData.datasets[0], backgroundColor: isDarkMode ? '#D90A14' : '#BA7517' }] }} options={{ responsive: true, plugins: { legend: { labels: { color: isDarkMode ? '#fff' : '#000' } } } }} /></div>
-            <div className="glass-card"><Pie data={capitalPie} options={{ responsive: true, plugins: { legend: { labels: { color: isDarkMode ? '#fff' : '#000' } } } }} /></div>
+          {/* Current Value */}
+          <div className="glass-strong">
+            <p className="metric-label">Current Valuation</p>
+            <p className="metric-huge" style={{ color: "var(--text-main)" }}>
+              <span style={{ fontSize: "0.5em", fontWeight: 600, opacity: 0.7 }}>Rs.</span>
+              {Math.round(stats.totalValue).toLocaleString()}
+            </p>
+            {stats.totalCapital > 0 && (
+              <span className={`micro-badge ${isProfit ? "micro-badge-success" : "micro-badge-danger"}`} style={{ marginTop: 12 }}>
+                {isProfit ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+                {isProfit ? "+" : ""}{stats.profitPct.toFixed(1)}% Total
+              </span>
+            )}
           </div>
+
+          {/* Net Profit/Loss */}
+          <div className="glass-strong" style={{ borderColor: isProfit ? "var(--color-green)" : "var(--color-red)" }}>
+            <p className="metric-label">Net Return</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <p className="metric-huge" style={{ color: isProfit ? "var(--color-green)" : "var(--color-red)" }}>
+                {isProfit ? "+" : ""}Rs.{Math.abs(Math.round(stats.netProfit)).toLocaleString()}
+              </p>
+            </div>
+            <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              {isProfit ? <ArrowUpRight size={14} color="var(--color-green)"/> : <TrendingDown size={14} color="var(--color-red)"/>}
+              <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>
+                {isProfit ? "Portfolio is growing" : "Portfolio declining"}
+              </span>
+            </div>
+          </div>
+
+          {/* Avg ROI with ring */}
+          <div className="glass-strong" style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <ProgressRing
+                value={Math.min(Math.abs(stats.avgROI), 100)} size={80}
+                color={stats.avgROI >= 0 ? "var(--color-green)" : "var(--color-red)"}
+              />
+              <span style={{
+                position: "absolute", inset: 0, display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 16, fontWeight: 800,
+                fontFamily: "var(--font-heading)",
+                color: stats.avgROI >= 0 ? "var(--color-green)" : "var(--color-red)",
+              }}>
+                {stats.avgROI.toFixed(0)}%
+              </span>
+            </div>
+            <div>
+              <p className="metric-label">Avg ROI</p>
+              <p className="metric-medium" style={{ color: stats.avgROI >= 0 ? "var(--color-green)" : "var(--color-red)" }}>
+                {stats.avgROI.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ── CHARTS ROW ─────────────────────────────────────── */}
+        {visiblePortfolio.length > 0 && (
+          <motion.div className="bento-grid bento-grid-2" variants={cardVariants}>
+            {/* ROI Bar Chart */}
+            <div className="glass-strong">
+              <p className="section-title">Asset Performance (ROI)</p>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={roiChartData} barCategoryGap="20%" margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} unit="%" />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--card-border)' }} />
+                  <Bar dataKey="ROI" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                    {roiChartData.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Asset Distribution */}
+            <div className="glass-strong">
+              <p className="section-title">Capital Distribution</p>
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={pieData} cx="50%" cy="50%" innerRadius="60%" outerRadius="85%"
+                    paddingAngle={4} dataKey="value" stroke="none"
+                  >
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend iconType="circle" iconSize={10} formatter={(val) => <span style={{ fontSize: 13, color: "var(--text-main)", fontWeight: 500 }}>{val}</span>} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ position: "absolute", top: "45%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, fontWeight: 600, textTransform: 'uppercase' }}>Total</p>
+                <p style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 20, margin: 0, color: "var(--text-main)" }}>
+                  Rs.{Math.round(stats.totalCapital).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </motion.div>
         )}
 
-        <section className="glass-card">
-          <h3 style={{ fontFamily: 'Syne', marginBottom: '20px' }}>Asset Allocation</h3>
-          <div className="table-wrapper">
-            <table className="modern-table">
-              <thead>
-                <tr>
-                  <th>Investment</th>
-                  <th>Capital</th>
-                  <th>Current Value</th>
-                  <th>Profit/Loss</th>
-                  <th>ROI</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {portfolio.map((p) => {
-                  const profit = p.investment_amount - p.total_capital;
-                  const isPositive = profit >= 0;
-                  return (
-                    <tr key={p.id}>
-                      <td style={{ fontWeight: '700' }}>{p.investment_name}</td>
-                      <td>Rs.{p.total_capital.toLocaleString()}</td>
-                      <td>Rs.{p.investment_amount.toLocaleString()}</td>
-                      <td>
-                        <span className={isPositive ? "badge-profit" : "badge-loss"}>
-                          {isPositive ? "+" : ""}Rs.{Math.round(profit).toLocaleString()}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: '800', color: isPositive ? '#10B981' : '#EF4444' }}>
-                        {p.roi?.toFixed(1)}%
-                      </td>
-                      <td>
-                        <button 
-                          onClick={() => deletePortfolio(p.id)} 
-                          style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: 'none', padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}
-                        >
-                          <Trash2 size={14} style={{ marginRight: '4px' }}/> Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
-    </div>
+        {/* ── GROWTH AREA CHART ──────────────────────────────── */}
+        {visiblePortfolio.length > 0 && (
+          <motion.div className="glass-strong" variants={cardVariants}>
+            <p className="section-title">Capital vs Valuation Trends</p>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={growthData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradCapital" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gradValue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-pink)" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="var(--color-pink)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="Capital" stroke="var(--accent)" strokeWidth={3} fill="url(#gradCapital)" />
+                <Area type="monotone" dataKey="Value" stroke="var(--color-pink)" strokeWidth={3} fill="url(#gradValue)" />
+                <Legend iconType="circle" iconSize={10} formatter={(val) => <span style={{ fontSize: 13, color: "var(--text-main)", fontWeight: 500 }}>{val}</span>} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </motion.div>
+        )}
+
+        {/* ── ADD INVESTMENT FORM ─────────────────────────────── */}
+        <motion.div className="glass-strong" variants={cardVariants}>
+          <p className="section-title">Record New Investment</p>
+          <form onSubmit={addPortfolio} style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: 20, alignItems: "end",
+          }}>
+            <div className="bento-form-group">
+              <label>Asset Name</label>
+              <input className="inv-input" placeholder="e.g. AAPL Stock" value={investmentName}
+                onChange={e => setInvestmentName(e.target.value)} required />
+            </div>
+            <div className="bento-form-group">
+              <label>Invested Amount</label>
+              <input className={`inv-input ${errors.capital ? "error-border" : ""}`}
+                type="number" placeholder="Rs. 0" value={capital}
+                onChange={e => { setCapital(e.target.value); validateField("capital", e.target.value); }} required />
+            </div>
+            <div className="bento-form-group">
+              <label>Current Market Value</label>
+              <input className={`inv-input ${errors.amount ? "error-border" : ""}`}
+                type="number" placeholder="Rs. 0" value={investmentAmount}
+                onChange={e => { setInvestmentAmount(e.target.value); validateField("amount", e.target.value); }} required />
+            </div>
+            <div className="bento-form-group">
+              <label>Holding Period (Years)</label>
+              <input className={`inv-input ${errors.time ? "error-border" : ""}`}
+                type="number" placeholder="1" value={timePeriod}
+                onChange={e => { setTimePeriod(e.target.value); validateField("time", e.target.value); }} required />
+            </div>
+            <button className="inv-btn-primary" disabled={hasErrors || !capital || !investmentAmount || submitting}
+              style={{ height: 46 }}>
+              <Plus size={18}/> {submitting ? "Processing…" : "Add Asset"}
+            </button>
+          </form>
+        </motion.div>
+
+        {/* ── HOLDINGS TABLE ──────────────────────────────────── */}
+        {visiblePortfolio.length > 0 && (
+          <motion.div className="glass-strong" variants={cardVariants} style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "24px 32px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <p className="section-title" style={{ margin: 0 }}>Asset Portfolio</p>
+              <button onClick={generatePDF}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "10px 18px", borderRadius: 12,
+                  background: "var(--accent)", color: "#fff", border: "none",
+                  cursor: "pointer", fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: 13,
+                  transition: "all 0.2s",
+                }}
+              >
+                <Download size={16}/> Export Report
+              </button>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--card-border)", background: "rgba(0,0,0,0.02)" }}>
+                    {["Asset", "Capital", "Valuation", "Net Gain", "ROI", ""].map(h => (
+                      <th key={h} style={{
+                        padding: "16px 32px", textAlign: "left", fontSize: 12,
+                        fontFamily: "var(--font-heading)", textTransform: "uppercase",
+                        letterSpacing: "1px", color: "var(--text-muted)", fontWeight: 700,
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visiblePortfolio.map((p, idx) => {
+                    const profit = p.investment_amount - p.total_capital;
+                    const pos = profit >= 0;
+                    return (
+                      <tr key={p.id} className="table-row-hover" style={{
+                        borderBottom: "1px solid var(--card-border)",
+                        animation: `fadeSlideUp 0.4s ${idx * 0.05}s both`,
+                        transition: "background 0.2s"
+                      }}>
+                        <td style={{ padding: "20px 32px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{
+                              width: 40, height: 40, borderRadius: 12,
+                              background: "var(--accent-dim)", display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 16, fontWeight: 800, color: "var(--accent)", fontFamily: "var(--font-heading)",
+                            }}>
+                              {p.investment_name[0]?.toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, color: "var(--text-main)" }}>{p.investment_name}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>{p.time_period} Year Hold</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: "20px 32px", fontWeight: 600 }}>Rs.{p.total_capital.toLocaleString()}</td>
+                        <td style={{ padding: "20px 32px", fontWeight: 600 }}>Rs.{p.investment_amount.toLocaleString()}</td>
+                        <td style={{ padding: "20px 32px" }}>
+                          <span className={`micro-badge ${pos ? "micro-badge-success" : "micro-badge-danger"}`}>
+                            {pos ? "+" : ""}Rs.{Math.round(profit).toLocaleString()}
+                          </span>
+                        </td>
+                        <td style={{ padding: "20px 32px", fontWeight: 800, fontFamily: "var(--font-heading)", color: pos ? "var(--color-green)" : "var(--color-red)" }}>
+                          {(p.roi || 0).toFixed(1)}%
+                        </td>
+                        <td style={{ padding: "20px 32px" }}>
+                          <button onClick={() => handleDeleteRequest(p.id, p.investment_name)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 6,
+                              background: "transparent", color: "var(--text-muted)",
+                              border: "none", padding: "8px", borderRadius: 8,
+                              cursor: "pointer", transition: "all 0.2s",
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.color = "var(--danger-color)"; e.currentTarget.style.background = "var(--danger-bg)"; }}
+                            onMouseLeave={e => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "transparent"; }}
+                          >
+                            <RotateCcw size={18}/>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Empty state */}
+        {visiblePortfolio.length === 0 && (
+          <motion.div className="glass-strong" variants={cardVariants}
+            style={{ textAlign: "center", padding: 80 }}>
+            <div style={{ fontSize: 56, marginBottom: 20 }}>📈</div>
+            <p style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 800, marginBottom: 8, color: "var(--text-main)" }}>
+              No Assets Tracked
+            </p>
+            <p style={{ color: "var(--text-muted)", fontSize: 15, maxWidth: 400, margin: "0 auto" }}>
+              Start building your portfolio tracker by adding your first investment record above.
+            </p>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* ── CONFIRMATION MODAL ── */}
+      <AnimatePresence>
+        {itemToDelete && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="modal-overlay"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="modal-content"
+            >
+              <div className="modal-icon">
+                <AlertCircle size={32} />
+              </div>
+              <h2 className="modal-title">Confirm Reversal</h2>
+              <p className="modal-desc">
+                Are you sure you want to remove <strong>{itemToDelete.name}</strong> from your portfolio? This action is permanent and will recalculate your historical ROI.
+              </p>
+              <div className="modal-actions">
+                <button className="modal-btn-cancel" onClick={cancelDelete}>Cancel</button>
+                <button className="modal-btn-confirm" onClick={confirmDelete}>Confirm Reversal</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </MainLayout>
   );
 }
-
-export default PortfolioManagement;

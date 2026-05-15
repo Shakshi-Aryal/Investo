@@ -32,6 +32,7 @@ def send_reminder_emails():
             # Fallback to username if email field is empty in auth_user
             recipient = r.user.email or r.user.username
             
+            # Send Email
             send_mail(
                 subject=f"⏰ Investo Reminder: {r.title}",
                 message=f"Hi {r.user.first_name or r.user.username},\n\nIt's time for: {r.title}\n{r.description}\n\nBest, Investo Team",
@@ -40,8 +41,21 @@ def send_reminder_emails():
                 fail_silently=False,
             )
             
+            # Create In-App Notification
+            try:
+                from notifications.services import create_notification
+                create_notification(
+                    user=r.user,
+                    notification_type='reminder',
+                    title=f"⏰ Reminder: {r.title}",
+                    message=r.description or f"It's time for your scheduled task: {r.title}",
+                    metadata={'reminder_id': r.id}
+                )
+            except Exception as e:
+                logger.error(f"NOTIFICATION ERROR: {e}")
+
             r.is_completed = True 
             r.save()
-            logger.info(f"SUCCESS: Email sent to {recipient}")
+            logger.info(f"SUCCESS: Email and Notification sent to {recipient}")
         except Exception as e:
             logger.error(f"MAIL ERROR: {e}")

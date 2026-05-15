@@ -5,12 +5,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-ppt=kvsd8m)&km75a#=_5y2$w@@3wxz9v@ww!8)**1ba98e1!5'
 DEBUG = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 # --------------------------
 # Application definition
 # --------------------------
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -23,6 +24,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_celery_beat',
+    'channels',
 
     # Your apps
     'accounts',
@@ -30,6 +32,9 @@ INSTALLED_APPS = [
     'reminders',
     'portfolio_management',
     'stocks',
+    'admin_portal',
+    'community',
+    'notifications',
 ]
 
 MIDDLEWARE = [
@@ -62,6 +67,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'investo_backend.wsgi.application'
+ASGI_APPLICATION = 'investo_backend.asgi.application'
 
 # --------------------------
 # Database (PostgreSQL)
@@ -91,13 +97,8 @@ USE_TZ = False
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --------------------------
-# CORS (React dev server)
-# --------------------------
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 # --------------------------
 # REST + JWT
@@ -105,6 +106,11 @@ CORS_ALLOWED_ORIGINS = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    # Allow unauthenticated access by default.
+    # Individual views that need auth use @permission_classes([IsAuthenticated]).
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
     ),
 }
 
@@ -138,3 +144,22 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = False # Use local time for scheduling
+
+# -------------------------
+# DJANGO CHANNELS CONFIG
+# -------------------------
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
+
+# -------------------------
+# MARKET SIMULATION SETTINGS
+# -------------------------
+# 'always_open' - simulation runs 24/7 (great for testing/demo)
+# 'nepse_hours' - simulation only ticks Sun-Thu from 11:00 AM to 3:00 PM Nepal Time
+MARKET_SIMULATION_MODE = 'always_open'

@@ -63,13 +63,14 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ['first_name', 'last_name', 'email', 'date_of_birth']
+        fields = ['first_name', 'last_name', 'email', 'date_of_birth', 'avatar']
 
     def update(self, instance, validated_data):
         profile_data = validated_data
         user_data = validated_data.get('user', {})
 
         instance.date_of_birth = profile_data.get('date_of_birth', instance.date_of_birth)
+        instance.avatar = profile_data.get('avatar', instance.avatar)
         instance.save()
 
         user = instance.user
@@ -79,3 +80,4 @@ class ProfileSerializer(serializers.ModelSerializer):
         user.save()
 
         return instance
+
