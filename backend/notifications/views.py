@@ -9,7 +9,7 @@ from datetime import datetime
 
 from .models import Notification
 from .serializers import NotificationSerializer
-from .services import get_unread_count, mark_all_read
+from .services import get_unread_count, mark_all_read, create_notification
 
 
 @api_view(['GET'])
@@ -71,6 +71,48 @@ def mark_read(request):
             return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
 
     return Response({'error': 'Provide notification_id or all=true'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_client_notification(request):
+    """
+    Create an in-app notification from the client (e.g. undo/reversal, purchase).
+    Body: { title, message, notification_type?, metadata?, send_email? }
+    """
+    title = (request.data.get('title') or '').strip()
+    message = (request.data.get('message') or '').strip()
+    if not title or not message:
+        return Response(
+            {'detail': 'title and message are required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    allowed_types = {c[0] for c in Notification.TYPE_CHOICES}
+    notif_type = request.data.get('notification_type', 'system')
+    if notif_type not in allowed_types:
+        notif_type = 'system'
+
+    send_email = bool(request.data.get('send_email', False))
+    metadata = request.data.get('metadata') or {}
+
+    notification = create_notification(
+        user=request.user,
+        notification_type=notif_type,
+        title=title,
+        message=message,
+        metadata=metadata,
+        send_email=send_email,
+    )
+
+    serializer = NotificationSerializer(notification)
+    return Response(
+        {
+            **serializer.data,
+            'unread_count': get_unread_count(request.user),
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(['DELETE'])

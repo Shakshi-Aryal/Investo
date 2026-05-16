@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import GlossaryWidget from "../components/GlossaryWidget";
+import LiveEconomicNewsPortal from "../components/dashboard/LiveEconomicNewsPortal";
 import MainLayout from "../layouts/MainLayout";
 
 const dashCss = `
@@ -41,14 +41,13 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const features = [
-    { title: "Portfolio Performance", icon: "💼", desc: "Visualize your asset allocation, ROI trends, and historical growth.", link: "/portfolio" },
-    { title: "Wealth Tracker", icon: "💰", desc: "Log income and expenses with visual spending funnels.", link: "/expense-tracker" },
-    { title: "Market Hub", icon: "📊", desc: "Real-time charts and global economic news.", link: "/market" },
-    { title: "Alerts & Tasks", icon: "🔔", desc: "Never miss a dividend or a meeting with smart reminders.", link: "/reminders" },
-    { title: "Community Chat", icon: "💬", desc: "Chat with fellow investors in real-time discussions.", link: "/community" },
-    { title: "Glossary", icon: "📖", desc: "Translate complex financial jargon into simple insights.", link: "/glossary" },
-    { title: "My Profile", icon: "👤", desc: "Manage your identity, security settings, and preferences.", link: "/profile" },
-    { title: "Settings", icon: "⚙️", desc: "Configure app preferences and dark mode.", link: "/settings" },
+    { title: "Multi-Asset Capital Allocation", icon: "💼", desc: "Lakhs/Crores ledger for NEPSE holdings and physical assets.", link: "/portfolio" },
+    { title: "NEPSE Live Tracker", icon: "📊", desc: "Session-aware prices, circuit limits, and live index metrics.", link: "/market" },
+    { title: "Global & Domestic Economic Feed", icon: "🌐", desc: "NPR FX, bullion ticker, and dual news panels.", link: "/news" },
+    { title: "Financial Reminders Calendar", icon: "🔔", desc: "Bills, subscriptions, and custom alerts with undo-safe actions.", link: "/reminders" },
+    { title: "Cash Flow Ledger", icon: "💰", desc: "Income and expense records with visual spending analysis.", link: "/expense-tracker" },
+    { title: "Account Profile", icon: "👤", desc: "Identity, trading balance, and security preferences.", link: "/profile" },
+    { title: "Platform Settings", icon: "⚙️", desc: "Theme, notifications, and application preferences.", link: "/settings" },
   ];
 
   const filteredFeatures = features.filter(f => f.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -59,15 +58,15 @@ export default function Dashboard() {
       <motion.div style={{ width: '100%' }} variants={containerVariants} initial="hidden" animate="show">
         
         <motion.div className="page-header" style={{ textAlign: 'left', marginBottom: 40 }} variants={itemVariants}>
-          <h1>Explore your <span className="heading-gradient">Finances</span></h1>
-          <p>Welcome back! Select a tool to start analyzing.</p>
+          <h1>Overview <span className="heading-gradient">Hub</span></h1>
+          <p>Your NEPSE command center — select a module to begin.</p>
         </motion.div>
 
         <motion.div className="dash-search-wrapper" variants={itemVariants}>
           <span className="dash-search-icon">🔍</span>
           <input
             type="text"
-            placeholder="Find tools, settings, or features..."
+            placeholder="Search modules (NEPSE, portfolio, feed…)"
             className="dash-search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -93,13 +92,13 @@ export default function Dashboard() {
 
         <motion.div className="dash-section-label" variants={itemVariants}>
           <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '24px', margin: 0 }}>
-            Daily <span className="heading-gradient">Knowledge</span>
+            Global & Domestic <span className="heading-gradient">Economic Feed</span>
           </h2>
           <div className="dash-section-line"></div>
         </motion.div>
-        
-        <motion.div className="glass-strong" style={{ padding: '32px' }} variants={itemVariants}>
-          <GlossaryWidget />
+
+        <motion.div variants={itemVariants}>
+          <LiveEconomicNewsPortal />
         </motion.div>
 
       </motion.div>

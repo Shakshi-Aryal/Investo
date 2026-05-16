@@ -3,7 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import useMarketWebSocket from '../hooks/useMarketWebSocket';
 import CandlestickChart from '../components/market/CandlestickChart';
+import BuyStockModal from '../components/market/BuyStockModal';
 import toast from 'react-hot-toast';
+import { TrendingUp } from 'lucide-react';
+
+import { apiUrl } from '../config';
+import { formatVolume, formatMarketCap } from '../utils/nepalFormat';
 import '../styles/market.css';
 
 const PERIODS = ['1D', '1W', '1M', '3M', '6M'];
@@ -12,14 +17,6 @@ function formatPrice(val) {
   const n = parseFloat(val);
   if (isNaN(n)) return '—';
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatVolume(val) {
-  const n = parseInt(val);
-  if (isNaN(n)) return '—';
-  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-  return n.toLocaleString();
 }
 
 export default function StockDetail() {
@@ -39,6 +36,7 @@ export default function StockDetail() {
   const [alertCondition, setAlertCondition] = useState('above');
   const [alerts, setAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
+  const [showBuyModal, setShowBuyModal] = useState(false);
 
   const { stockData } = useMarketWebSocket(symbol);
 
@@ -48,14 +46,14 @@ export default function StockDetail() {
     try {
       const token = getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`http://localhost:8000/api/market/stocks/${symbol}/`, { headers });
+      const res = await fetch(apiUrl(`/market/stocks/${symbol}/`), { headers });
       if (res.ok) {
         const data = await res.json();
         setStock(data);
         setIsWatchlisted(data.is_watchlisted || false);
       }
-    } catch (err) {
-      console.error('[StockDetail] fetch error:', err);
+    } catch {
+      /* silent */
     } finally {
       setLoading(false);
     }
@@ -65,14 +63,14 @@ export default function StockDetail() {
     try {
       const tf = period === '1D' ? '1m' : '1d';
       const res = await fetch(
-        `http://localhost:8000/api/market/stocks/${symbol}/history/?timeframe=${tf}&period=${period}`
+        `${apiUrl(`/market/stocks/${symbol}/history/`)}?timeframe=${tf}&period=${period}`
       );
       if (res.ok) {
         const data = await res.json();
         setHistory(data);
       }
-    } catch (err) {
-      console.error('[StockDetail] history fetch error:', err);
+    } catch {
+      /* silent */
     }
   }, [symbol, period]);
 
@@ -80,7 +78,7 @@ export default function StockDetail() {
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch('http://localhost:8000/api/market/alerts/', {
+      const res = await fetch(apiUrl('/market/alerts/'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -88,8 +86,8 @@ export default function StockDetail() {
         // Filter alerts for this stock
         setAlerts(data.filter(a => a.stock_symbol === symbol));
       }
-    } catch (err) {
-      console.error('[StockDetail] alerts fetch error:', err);
+    } catch {
+      /* silent */
     }
   }, [symbol]);
 
@@ -120,7 +118,7 @@ export default function StockDetail() {
     }
     setWatchlistLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/market/watchlist/toggle/', {
+      const res = await fetch(apiUrl('/market/watchlist/toggle/'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -153,7 +151,7 @@ export default function StockDetail() {
     }
     setAlertsLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/market/alerts/', {
+      const res = await fetch(apiUrl('/market/alerts/'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -185,7 +183,7 @@ export default function StockDetail() {
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/market/alerts/${alertId}/`, {
+      const res = await fetch(apiUrl(`/market/alerts/${alertId}/`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -236,6 +234,9 @@ export default function StockDetail() {
               </span>
             </div>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '16px' }}>{stock.company_name}</p>
+            <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, letterSpacing: 0.4 }}>
+              NEPSE Scrip · OHLC Candlestick Analytics
+            </p>
           </div>
 
           <div style={{ textAlign: 'right' }}>
@@ -249,6 +250,14 @@ export default function StockDetail() {
 
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: '12px', width: '100%', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setShowBuyModal(true)}
+              className="inv-btn-primary"
+              style={{ width: 'auto', padding: '10px 20px', borderRadius: 10, fontSize: 14 }}
+            >
+              <TrendingUp size={16} /> Invest / Buy Stock
+            </button>
             <button
               onClick={toggleWatchlist}
               disabled={watchlistLoading}
@@ -300,8 +309,8 @@ export default function StockDetail() {
               symbol={symbol}
               data={history}
               timeframe={period === '1D' ? '1m' : '1d'}
-              isDarkMode={true}
               liveTick={liveTick}
+              lastPrice={stock.current_price}
             />
           </div>
         </div>
@@ -314,11 +323,7 @@ export default function StockDetail() {
             { label: 'Day High', value: `Rs. ${formatPrice(stock.high_price)}`, color: 'var(--success-color)' },
             { label: 'Day Low', value: `Rs. ${formatPrice(stock.low_price)}`, color: 'var(--danger-color)' },
             { label: 'Volume', value: formatVolume(stock.volume) },
-            { label: 'Market Cap', value: (() => {
-              const n = parseFloat(stock.market_cap);
-              if (isNaN(n)) return '—';
-              return 'Rs. ' + (n / 10000000).toFixed(2) + ' Cr';
-            })() },
+            { label: 'Market Cap', value: formatMarketCap(stock.market_cap) },
             { label: 'Listed Shares', value: parseInt(stock.total_listed_shares || 0).toLocaleString() },
             { label: 'Sector', value: (stock.sector || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) },
           ].map(item => (
@@ -451,6 +456,12 @@ export default function StockDetail() {
           </div>
         </div>
       )}
+
+      <BuyStockModal
+        stock={stock}
+        open={showBuyModal}
+        onClose={() => setShowBuyModal(false)}
+      />
     </MainLayout>
   );
 }

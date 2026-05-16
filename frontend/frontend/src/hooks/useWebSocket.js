@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { wsUrl } from "../config";
 
 /**
  * Custom hook for managing WebSocket connections to chat groups.
@@ -22,15 +23,13 @@ export default function useWebSocket(groupId) {
       wsRef.current.close();
     }
 
-    const wsUrl = `ws://localhost:8000/ws/chat/${groupId}/?token=${token}`;
-    const ws = new WebSocket(wsUrl);
+    const socket = new WebSocket(`${wsUrl(`/ws/chat/${groupId}/`)}?token=${token}`);
 
-    ws.onopen = () => {
+    socket.onopen = () => {
       setIsConnected(true);
-      console.log(`[WS] Connected to group ${groupId}`);
     };
 
-    ws.onmessage = (event) => {
+    socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
       if (data.type === "message") {
@@ -46,29 +45,19 @@ export default function useWebSocket(groupId) {
         ]);
       } else if (data.type === "user_event") {
         setEvents((prev) => [...prev, data]);
-      } else if (data.type === "error") {
-        console.warn("[WS] Error:", data.message);
       }
     };
 
-    ws.onclose = (e) => {
+    socket.onclose = (e) => {
       setIsConnected(false);
-      console.log(`[WS] Disconnected from group ${groupId}`);
-
-      // Auto-reconnect after 3 seconds (if not intentional close)
       if (e.code !== 1000) {
-        reconnectTimeout.current = setTimeout(() => {
-          console.log("[WS] Attempting reconnection...");
-          connect();
-        }, 3000);
+        reconnectTimeout.current = setTimeout(() => connect(), 3000);
       }
     };
 
-    ws.onerror = (err) => {
-      console.error("[WS] Error:", err);
-    };
+    socket.onerror = () => {};
 
-    wsRef.current = ws;
+    wsRef.current = socket;
   }, [groupId]);
 
   // Connect when groupId changes

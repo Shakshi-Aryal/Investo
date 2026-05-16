@@ -1,9 +1,17 @@
-from django.core.mail import EmailMessage
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from django.conf import settings
+import logging
 import threading
+
+from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import EmailMessage
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+
+logger = logging.getLogger(__name__)
+
+
+def _frontend_base():
+    return getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
 
 
 def _async_send(email):
@@ -11,19 +19,16 @@ def _async_send(email):
     try:
         email.send()
     except Exception as e:
-        print("Email sending error:", e)
+        logger.warning('Email sending error: %s', e)
 
 
 def send_verification_email(user):
-    """
-    Sends email verification link to user's email (FAST, non-blocking)
-    """
+    """Sends email verification link (non-blocking)."""
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
+    verification_link = f"{_frontend_base()}/verify-email/{uid}/{token}/"
 
-    verification_link = f"http://localhost:5173/verify-email/{uid}/{token}/"
-
-    mail_subject = "Verify your Investo account"
+    mail_subject = 'Verify your Investo account'
     message = f"""
     Hi {user.username},
 
@@ -37,9 +42,8 @@ def send_verification_email(user):
     email = EmailMessage(
         subject=mail_subject,
         body=message,
-        from_email=settings.EMAIL_HOST_USER,
-        to=[user.email]
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
     )
 
-    #  Send asynchronously to avoid 3–5 sec delay
-    threading.Thread(target=_async_send, args=(email,)).start()
+    threading.Thread(target=_async_send, args=(email,), daemon=True).start()

@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { TrendingUp } from 'lucide-react';
 import MainLayout from '../layouts/MainLayout';
 import useMarketWebSocket from '../hooks/useMarketWebSocket';
+import BuyStockModal from '../components/market/BuyStockModal';
+import { formatVolume, formatMarketCap, formatNpr } from '../utils/nepalFormat';
+import { apiUrl } from '../config';
 import '../styles/market.css';
 
 const SECTORS = [
@@ -32,22 +36,6 @@ function formatPrice(val) {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatVolume(val) {
-  const n = parseInt(val);
-  if (isNaN(n)) return '—';
-  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-  return n.toLocaleString();
-}
-
-function formatMarketCap(val) {
-  const n = parseFloat(val);
-  if (isNaN(n)) return '—';
-  if (n >= 10000000) return 'Rs. ' + (n / 10000000).toFixed(2) + ' Cr';
-  if (n >= 100000) return 'Rs. ' + (n / 100000).toFixed(2) + ' L';
-  return 'Rs. ' + n.toLocaleString();
-}
-
 export default function MarketDashboard() {
   const navigate = useNavigate();
   const [overview, setOverview] = useState(null);
@@ -59,18 +47,19 @@ export default function MarketDashboard() {
   const [sortBy, setSortBy] = useState('symbol');
   const [sortOrder, setSortOrder] = useState('asc');
   const [activeTab, setActiveTab] = useState('all'); // all | gainers | losers | active
+  const [buyStock, setBuyStock] = useState(null);
 
   const { marketData, indexData } = useMarketWebSocket();
 
   const fetchMarketOverview = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/market/overview/');
+      const res = await fetch(apiUrl('/market/overview/'));
       if (res.ok) {
         const data = await res.json();
         setOverview(data);
       }
-    } catch (err) {
-      console.error('[Market] Overview fetch error:', err);
+    } catch {
+      /* silent */
     }
   }, []);
 
@@ -82,13 +71,13 @@ export default function MarketDashboard() {
       params.set('sort_by', sortBy);
       params.set('order', sortOrder);
 
-      const res = await fetch(`http://localhost:8000/api/market/stocks/?${params}`);
+      const res = await fetch(`${apiUrl('/market/stocks/')}?${params}`);
       if (res.ok) {
         const data = await res.json();
         setStocks(data);
       }
-    } catch (err) {
-      console.error('[Market] Stock list fetch error:', err);
+    } catch {
+      /* silent */
     } finally {
       setLoading(false);
     }
@@ -96,13 +85,13 @@ export default function MarketDashboard() {
 
   const fetchSectors = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/market/sectors/');
+      const res = await fetch(apiUrl('/market/sectors/'));
       if (res.ok) {
         const data = await res.json();
         setSectors(data);
       }
-    } catch (err) {
-      console.error('[Market] Sectors fetch error:', err);
+    } catch {
+      /* silent */
     }
   }, []);
 
@@ -162,9 +151,9 @@ export default function MarketDashboard() {
         {/* ── PAGE HEADER ── */}
         <header className="market-header">
           <div>
-            <h1 className="page-title" style={{ margin: 0 }}>Market Dashboard</h1>
+            <h1 className="page-title" style={{ margin: 0 }}>NEPSE Live Tracker</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-              Real-time simulation of the Nepal Stock Exchange (NEPSE)
+              Session-aware NEPSE simulation · Mon–Fri 11:00–15:00 NPT · Lakhs/Crores metrics
             </p>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -215,9 +204,9 @@ export default function MarketDashboard() {
           </div>
 
           <div className="stat-card">
-            <span className="stat-label">Listed Stocks</span>
-            <span className="stat-value">{stocks.length}</span>
-            <span className="stat-change" style={{ color: 'var(--text-muted)' }}>Active Securities</span>
+            <span className="stat-label">Total Turnover</span>
+            <span className="stat-value">{formatNpr(currentIdx?.total_turnover || 0)}</span>
+            <span className="stat-change" style={{ color: 'var(--text-muted)' }}>Today&apos;s Session</span>
           </div>
         </div>
 
@@ -333,12 +322,13 @@ export default function MarketDashboard() {
                     <th>High / Low</th>
                     <th>Volume</th>
                     <th>Market Cap</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayStocks.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                         No stocks found
                       </td>
                     </tr>
@@ -370,6 +360,24 @@ export default function MarketDashboard() {
                           </td>
                           <td style={{ color: 'var(--text-muted)' }}>{formatVolume(stock.volume)}</td>
                           <td style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{formatMarketCap(stock.market_cap)}</td>
+                          <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className="inv-btn-primary"
+                              style={{
+                                width: 'auto',
+                                padding: '8px 14px',
+                                fontSize: 12,
+                                borderRadius: 10,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                              }}
+                              onClick={() => setBuyStock(stock)}
+                            >
+                              <TrendingUp size={14} /> Invest / Buy Stock
+                            </button>
+                          </td>
                         </tr>
                       );
                     })
@@ -463,6 +471,12 @@ export default function MarketDashboard() {
           </aside>
         </div>
       </div>
+
+      <BuyStockModal
+        stock={buyStock}
+        open={!!buyStock}
+        onClose={() => setBuyStock(null)}
+      />
     </MainLayout>
   );
 }

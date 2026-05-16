@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
@@ -6,11 +6,25 @@ import {
 } from "recharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { AlertCircle, Trash2, Download, Plus, TrendingUp, TrendingDown, ArrowUpRight, RotateCcw } from "lucide-react";
+import { AlertCircle, Download, Plus, TrendingUp, TrendingDown, ArrowUpRight, RotateCcw } from "lucide-react";
 import MainLayout from "../layouts/MainLayout";
+import { usePortfolio } from "../context/PortfolioContext";
+import { apiUrl } from "../config";
+import { formatNpr } from "../utils/nepalFormat";
+import { safeNum, truncateLabel } from "../utils/portfolioMath";
 
-const API_URL = "http://127.0.0.1:8000/api/portfolio/";
+const PORTFOLIO_API = apiUrl("/portfolio/");
 const TOKEN_KEY = "jwt";
+
+const INVESTMENT_TYPES = [
+  { value: "stocks_digital", label: "Digital Stocks / Listed Assets", group: "digital" },
+  { value: "real_estate", label: "Real Estate / Land", group: "physical" },
+  { value: "cash", label: "Cash & Liquidity", group: "physical" },
+  { value: "precious_metals", label: "Physical Gold / Silver", group: "physical" },
+  { value: "other_physical", label: "Other Physical Assets", group: "physical" },
+];
+
+const TYPE_LABEL = Object.fromEntries(INVESTMENT_TYPES.map((t) => [t.value, t.label]));
 
 /* ── Circular progress ring ──────────────────────────────────── */
 function ProgressRing({ value, size = 72, color = "var(--accent)" }) {
@@ -67,57 +81,95 @@ const CHART_COLORS = [
 
 export default function PortfolioManagement() {
   const token = localStorage.getItem(TOKEN_KEY);
-  const [portfolio, setPortfolio] = useState([]);
+  const { holdings: portfolio, fetchPortfolio, removeHolding, addManualHolding } = usePortfolio();
 
-  // Form states
   const [investmentName, setInvestmentName] = useState("");
+  const [investmentType, setInvestmentType] = useState("real_estate");
   const [capital, setCapital] = useState("");
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [timePeriod, setTimePeriod] = useState("");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  const fetchPortfolio = async () => {
-    try {
-      const res = await fetch(API_URL, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setPortfolio(await res.json());
-    } catch (err) { console.error(err); }
-  };
+  useEffect(() => {
+    if (token) fetchPortfolio();
+  }, [token, fetchPortfolio]);
 
-  useEffect(() => { if (token) fetchPortfolio(); }, [token]);
-
-  const visiblePortfolio = useMemo(() => {
-    return portfolio;
-  }, [portfolio]);
+  const visiblePortfolio = useMemo(() => portfolio, [portfolio]);
 
   // ── Computed stats ────────────────────────────────────────────
   const stats = useMemo(() => {
-    const totalCapital = visiblePortfolio.reduce((s, p) => s + p.total_capital, 0);
-    const totalValue = visiblePortfolio.reduce((s, p) => s + p.investment_amount, 0);
+    const totalCapital = visiblePortfolio.reduce((s, p) => s + safeNum(p.total_capital), 0);
+    const totalValue = visiblePortfolio.reduce((s, p) => s + safeNum(p.investment_amount), 0);
     const netProfit = totalValue - totalCapital;
-    const profitPct = totalCapital > 0 ? ((netProfit / totalCapital) * 100) : 0;
-    const avgROI = visiblePortfolio.length > 0 ? visiblePortfolio.reduce((s, p) => s + (p.roi || 0), 0) / visiblePortfolio.length : 0;
+    const profitPct = totalCapital > 0 ? (netProfit / totalCapital) * 100 : 0;
+    const avgROI =
+      visiblePortfolio.length > 0
+        ? visiblePortfolio.reduce((s, p) => s + safeNum(p.roi), 0) / visiblePortfolio.length
+        : 0;
     return { totalCapital, totalValue, netProfit, profitPct, avgROI };
   }, [visiblePortfolio]);
 
-  // ── Chart data ────────────────────────────────────────────────
-  const roiChartData = visiblePortfolio.map(p => ({
-    name: p.investment_name.length > 12 ? p.investment_name.slice(0, 12) + "…" : p.investment_name,
-    ROI: parseFloat((p.roi || 0).toFixed(1)),
-  }));
+  const roiChartData = useMemo(
+    () =>
+      visiblePortfolio.map((p) => ({
+        name: truncateLabel(p.investment_name, 12),
+        ROI: parseFloat(safeNum(p.roi).toFixed(1)),
+      })),
+    [visiblePortfolio],
+  );
 
-  const pieData = visiblePortfolio.map(p => ({
-    name: p.investment_name,
-    value: p.total_capital,
-  }));
+  const pieData = useMemo(
+    () =>
+      visiblePortfolio
+        .filter((p) => safeNum(p.investment_amount) > 0)
+        .map((p) => ({
+          name: truncateLabel(p.investment_name, 14),
+          value: safeNum(p.investment_amount),
+          type: TYPE_LABEL[p.investment_type] || p.investment_type,
+        })),
+    [visiblePortfolio],
+  );
 
-  const growthData = visiblePortfolio.map((p, i) => ({
-    name: p.investment_name.length > 10 ? p.investment_name.slice(0, 10) + "…" : p.investment_name,
-    Capital: p.total_capital,
-    Value: p.investment_amount,
-  }));
+  const typePieData = useMemo(() => {
+    const groups = {};
+    visiblePortfolio.forEach((p) => {
+      const amt = safeNum(p.investment_amount);
+      if (amt <= 0) return;
+      const label = TYPE_LABEL[p.investment_type] || p.investment_type;
+      groups[label] = (groups[label] || 0) + amt;
+    });
+    return Object.entries(groups).map(([name, value]) => ({ name, value }));
+  }, [visiblePortfolio]);
+
+  const digitalValue = useMemo(
+    () =>
+      visiblePortfolio
+        .filter((p) => p.investment_type === "stocks_digital")
+        .reduce((s, p) => s + safeNum(p.investment_amount), 0),
+    [visiblePortfolio],
+  );
+  const physicalValue = useMemo(
+    () =>
+      visiblePortfolio
+        .filter((p) => p.investment_type !== "stocks_digital")
+        .reduce((s, p) => s + safeNum(p.investment_amount), 0),
+    [visiblePortfolio],
+  );
+
+  const growthData = useMemo(
+    () =>
+      visiblePortfolio.map((p) => ({
+        name: truncateLabel(p.investment_name, 10),
+        Capital: safeNum(p.total_capital),
+        Value: safeNum(p.investment_amount),
+      })),
+    [visiblePortfolio],
+  );
+
+  const hasTypeChart = typePieData.length > 0;
+  const hasPieChart = pieData.length > 0;
 
   // ── Validation ────────────────────────────────────────────────
   const validateField = (name, value) => {
@@ -132,11 +184,21 @@ export default function PortfolioManagement() {
     if (parseFloat(capital) <= 0 || parseFloat(investmentAmount) <= 0 || parseInt(timePeriod) <= 0) return;
     setSubmitting(true);
     try {
-      const res = await fetch(API_URL, {
+      if (investmentType === "stocks_digital") {
+        setErrors((prev) => ({
+          ...prev,
+          type: "Listed NEPSE stocks must be purchased from the Market page.",
+        }));
+        setSubmitting(false);
+        return;
+      }
+
+      const res = await fetch(PORTFOLIO_API, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           investment_name: investmentName,
+          investment_type: investmentType,
           total_capital: parseFloat(capital),
           investment_amount: parseFloat(investmentAmount),
           estimated_return_per_year: 10,
@@ -144,11 +206,18 @@ export default function PortfolioManagement() {
         }),
       });
       if (res.ok) {
-        setInvestmentName(""); setCapital(""); setInvestmentAmount(""); setTimePeriod("");
+        const created = await res.json();
+        addManualHolding(created);
+        setInvestmentName("");
+        setInvestmentType("real_estate");
+        setCapital("");
+        setInvestmentAmount("");
+        setTimePeriod("");
         setErrors({});
-        fetchPortfolio();
       }
-    } catch (err) { console.error(err); }
+    } catch {
+      /* silent */
+    }
     finally { setSubmitting(false); }
   };
 
@@ -160,10 +229,15 @@ export default function PortfolioManagement() {
   const confirmDelete = async () => {
     if (!itemToDelete) return;
     try {
-      await fetch(`${API_URL}${itemToDelete.id}/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      await fetch(`${PORTFOLIO_API}${itemToDelete.id}/`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      removeHolding(itemToDelete.id);
       setItemToDelete(null);
-      fetchPortfolio();
-    } catch (err) { console.error("Deletion failed", err); }
+    } catch {
+      /* silent */
+    }
   };
 
   const cancelDelete = () => {
@@ -197,15 +271,15 @@ export default function PortfolioManagement() {
       >
         {/* ── PAGE HEADER ────────────────────────────────────── */}
         <motion.div className="page-header" variants={cardVariants}>
-          <h1>Portfolio <span className="heading-gradient">Performance</span></h1>
-          <p>Track assets, ROI, and historical growth</p>
+          <h1>Multi-Asset <span className="heading-gradient">Capital Allocation</span></h1>
+          <p>Lakhs/Crores valuation ledger · digital NEPSE & physical assets</p>
         </motion.div>
 
         {/* ── METRICS BENTO ROW ──────────────────────────────── */}
         <motion.div className="bento-grid bento-grid-4" variants={cardVariants}>
           {/* Initial Capital */}
           <div className="glass-strong">
-            <p className="metric-label">Invested Capital</p>
+            <p className="metric-label">Total Invested Capital</p>
             <p className="metric-huge" style={{ color: "var(--accent)" }}>
               <span style={{ fontSize: "0.5em", fontWeight: 600, opacity: 0.7 }}>Rs.</span>
               {Math.round(stats.totalCapital).toLocaleString()}
@@ -217,7 +291,7 @@ export default function PortfolioManagement() {
 
           {/* Current Value */}
           <div className="glass-strong">
-            <p className="metric-label">Current Valuation</p>
+            <p className="metric-label">Portfolio Valuation</p>
             <p className="metric-huge" style={{ color: "var(--text-main)" }}>
               <span style={{ fontSize: "0.5em", fontWeight: 600, opacity: 0.7 }}>Rs.</span>
               {Math.round(stats.totalValue).toLocaleString()}
@@ -271,6 +345,20 @@ export default function PortfolioManagement() {
           </div>
         </motion.div>
 
+        {/* ── Digital vs Physical split ── */}
+        {visiblePortfolio.length > 0 && (
+          <motion.div className="bento-grid bento-grid-2" variants={cardVariants}>
+            <div className="glass-strong">
+              <p className="metric-label">Digital / NEPSE</p>
+              <p className="metric-medium" style={{ color: "var(--accent)" }}>{formatNpr(digitalValue)}</p>
+            </div>
+            <div className="glass-strong">
+              <p className="metric-label">Physical Assets</p>
+              <p className="metric-medium" style={{ color: "var(--color-orange)" }}>{formatNpr(physicalValue)}</p>
+            </div>
+          </motion.div>
+        )}
+
         {/* ── CHARTS ROW ─────────────────────────────────────── */}
         {visiblePortfolio.length > 0 && (
           <motion.div className="bento-grid bento-grid-2" variants={cardVariants}>
@@ -291,30 +379,55 @@ export default function PortfolioManagement() {
               </ResponsiveContainer>
             </div>
 
-            {/* Asset Distribution */}
-            <div className="glass-strong">
-              <p className="section-title">Capital Distribution</p>
-              <ResponsiveContainer width="100%" height={280}>
+            {/* By investment type (digital + physical) */}
+            <div className="glass-strong" style={{ position: "relative" }}>
+              <p className="section-title">Allocation by Type</p>
+              {hasTypeChart ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={typePieData} cx="50%" cy="50%" innerRadius="55%" outerRadius="82%"
+                      paddingAngle={4} dataKey="value" stroke="none"
+                    >
+                      {typePieData.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend iconType="circle" iconSize={10} formatter={(val) => <span style={{ fontSize: 12, color: "var(--text-main)", fontWeight: 500 }}>{val}</span>} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p style={{ color: "var(--text-muted)", fontSize: 14, padding: "40px 0", textAlign: "center" }}>
+                  No allocation data yet — add digital or physical assets.
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {visiblePortfolio.length > 0 && (
+          <motion.div className="glass-strong" variants={cardVariants} style={{ position: "relative" }}>
+            <p className="section-title">Individual Asset Valuation</p>
+            {hasPieChart ? (
+              <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
-                    data={pieData} cx="50%" cy="50%" innerRadius="60%" outerRadius="85%"
-                    paddingAngle={4} dataKey="value" stroke="none"
+                    data={pieData} cx="50%" cy="50%" innerRadius="50%" outerRadius="78%"
+                    paddingAngle={3} dataKey="value" stroke="none"
                   >
                     {pieData.map((_, i) => (
                       <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend iconType="circle" iconSize={10} formatter={(val) => <span style={{ fontSize: 13, color: "var(--text-main)", fontWeight: 500 }}>{val}</span>} />
                 </PieChart>
               </ResponsiveContainer>
-              <div style={{ position: "absolute", top: "45%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, fontWeight: 600, textTransform: 'uppercase' }}>Total</p>
-                <p style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 20, margin: 0, color: "var(--text-main)" }}>
-                  Rs.{Math.round(stats.totalCapital).toLocaleString()}
-                </p>
-              </div>
-            </div>
+            ) : (
+              <p style={{ color: "var(--text-muted)", fontSize: 14, textAlign: "center", padding: 24 }}>
+                Chart populates when assets have a positive valuation.
+              </p>
+            )}
           </motion.div>
         )}
 
@@ -347,15 +460,56 @@ export default function PortfolioManagement() {
 
         {/* ── ADD INVESTMENT FORM ─────────────────────────────── */}
         <motion.div className="glass-strong" variants={cardVariants}>
-          <p className="section-title">Record New Investment</p>
+          <p className="section-title">Register Physical Asset</p>
           <form onSubmit={addPortfolio} style={{
             display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
             gap: 20, alignItems: "end",
           }}>
             <div className="bento-form-group">
+              <label>Investment Type</label>
+              <select
+                className="inv-input"
+                value={investmentType}
+                onChange={(e) => {
+                  setInvestmentType(e.target.value);
+                  setErrors((prev) => ({ ...prev, type: "" }));
+                }}
+                style={{ cursor: "pointer" }}
+              >
+                <optgroup label="Digital — use Market to buy">
+                  <option value="stocks_digital">Digital Stocks / Listed (Market only)</option>
+                </optgroup>
+                <optgroup label="Physical investments">
+                  <option value="real_estate">Real Estate / Land</option>
+                  <option value="cash">Cash & Liquidity</option>
+                  <option value="precious_metals">Physical Gold / Silver</option>
+                  <option value="other_physical">Other Physical</option>
+                </optgroup>
+              </select>
+              {investmentType === "stocks_digital" && (
+                <p style={{ fontSize: 12, color: "var(--accent)", marginTop: 8, fontWeight: 600 }}>
+                  NEPSE listings: use Market → Invest / Buy Stock for live purchases.
+                </p>
+              )}
+              {errors.type && (
+                <p style={{ fontSize: 12, color: "var(--danger-color)", marginTop: 6 }}>{errors.type}</p>
+              )}
+            </div>
+            <div className="bento-form-group">
               <label>Asset Name</label>
-              <input className="inv-input" placeholder="e.g. AAPL Stock" value={investmentName}
-                onChange={e => setInvestmentName(e.target.value)} required />
+              <input
+                className="inv-input"
+                placeholder={
+                  investmentType === "stocks_digital"
+                    ? "e.g. NABIL or BTC"
+                    : investmentType === "real_estate"
+                      ? "e.g. Apartment — Kathmandu"
+                      : "e.g. Gold holdings"
+                }
+                value={investmentName}
+                onChange={(e) => setInvestmentName(e.target.value)}
+                required
+              />
             </div>
             <div className="bento-form-group">
               <label>Invested Amount</label>
@@ -386,7 +540,7 @@ export default function PortfolioManagement() {
         {visiblePortfolio.length > 0 && (
           <motion.div className="glass-strong" variants={cardVariants} style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "24px 32px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <p className="section-title" style={{ margin: 0 }}>Asset Portfolio</p>
+              <p className="section-title" style={{ margin: 0 }}>Lakhs/Crores Asset Ledger</p>
               <button onClick={generatePDF}
                 style={{
                   display: "flex", alignItems: "center", gap: 8,
@@ -403,7 +557,7 @@ export default function PortfolioManagement() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--card-border)", background: "rgba(0,0,0,0.02)" }}>
-                    {["Asset", "Capital", "Valuation", "Net Gain", "ROI", ""].map(h => (
+                    {["Asset", "Type", "Capital", "Valuation", "Net Gain", "ROI", ""].map(h => (
                       <th key={h} style={{
                         padding: "16px 32px", textAlign: "left", fontSize: 12,
                         fontFamily: "var(--font-heading)", textTransform: "uppercase",
@@ -414,7 +568,7 @@ export default function PortfolioManagement() {
                 </thead>
                 <tbody>
                   {visiblePortfolio.map((p, idx) => {
-                    const profit = p.investment_amount - p.total_capital;
+                    const profit = safeNum(p.investment_amount) - safeNum(p.total_capital);
                     const pos = profit >= 0;
                     return (
                       <tr key={p.id} className="table-row-hover" style={{
@@ -433,9 +587,16 @@ export default function PortfolioManagement() {
                             </div>
                             <div>
                               <div style={{ fontWeight: 700, color: "var(--text-main)" }}>{p.investment_name}</div>
-                              <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>{p.time_period} Year Hold</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>
+                                {p.stock_symbol ? `${p.stock_symbol} · ` : ""}{p.time_period} yr hold
+                              </div>
                             </div>
                           </div>
+                        </td>
+                        <td style={{ padding: "20px 32px" }}>
+                          <span className="micro-badge micro-badge-accent" style={{ fontSize: 11 }}>
+                            {TYPE_LABEL[p.investment_type] || p.investment_type}
+                          </span>
                         </td>
                         <td style={{ padding: "20px 32px", fontWeight: 600 }}>Rs.{p.total_capital.toLocaleString()}</td>
                         <td style={{ padding: "20px 32px", fontWeight: 600 }}>Rs.{p.investment_amount.toLocaleString()}</td>
@@ -445,7 +606,7 @@ export default function PortfolioManagement() {
                           </span>
                         </td>
                         <td style={{ padding: "20px 32px", fontWeight: 800, fontFamily: "var(--font-heading)", color: pos ? "var(--color-green)" : "var(--color-red)" }}>
-                          {(p.roi || 0).toFixed(1)}%
+                          {safeNum(p.roi).toFixed(1)}%
                         </td>
                         <td style={{ padding: "20px 32px" }}>
                           <button onClick={() => handleDeleteRequest(p.id, p.investment_name)}

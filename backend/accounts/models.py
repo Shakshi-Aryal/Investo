@@ -6,8 +6,13 @@ class Profile(models.Model):
     date_of_birth = models.DateField(null=True, blank=True)
     avatar = models.TextField(null=True, blank=True)
 
-    #  NEW FIELD — this replaces is_active email verification
     is_verified = models.BooleanField(default=False)
+    trading_balance = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=500000,
+        help_text='Simulated NPR cash for NEPSE market purchases',
+    )
 
     def __str__(self):
         return self.user.username

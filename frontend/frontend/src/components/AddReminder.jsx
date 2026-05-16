@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../config";
 
 export default function AddReminder({ selectedDate, onAdded }) {
   // --- THEME SYNC LOGIC ---
@@ -32,7 +33,7 @@ export default function AddReminder({ selectedDate, onAdded }) {
   const submit = async () => {
     if (!data.title.trim()) return alert("Title required");
 
-    const res = await fetch("http://localhost:8000/api/reminders/", {
+    const res = await fetch(apiUrl("/reminders/"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -14,7 +14,9 @@ import ForumFeed from "../components/forum/ForumFeed";
 import PostDetail from "../components/forum/PostDetail";
 import CreatePostModal from "../components/forum/CreatePostModal";
 
-const API = "http://localhost:8000/api/community";
+import { apiUrl } from "../config";
+
+const API = apiUrl("/community");
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(dateStr) {
@@ -326,10 +328,10 @@ export default function Community() {
       {/* ── Page header ── */}
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontFamily: "var(--font-heading)", fontSize: "clamp(26px, 4vw, 38px)", fontWeight: 800, letterSpacing: "-1px", margin: 0 }}>
-          Community <span className="heading-gradient">Forum</span>
+          Premium Financial <span className="heading-gradient">Forum</span>
         </h1>
         <p style={{ color: "var(--text-muted)", marginTop: "6px", fontSize: "14px" }}>
-          Discuss investments, share strategies, and learn from fellow investors
+          The Community Knowledge Hub where you collaborate on market trends and strategy.
         </p>
       </div>
 
@@ -507,7 +509,7 @@ export default function Community() {
             <div className="forum-sidebar-title">📌 Quick Links</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
-                { label: "📈 Market Dashboard", path: "/market" },
+                { label: "📈 NEPSE Live Tracker", path: "/market" },
                 { label: "💼 My Portfolio",     path: "/portfolio" },
                 { label: "🔔 Notifications",    path: "/notifications" },
               ].map(link => (

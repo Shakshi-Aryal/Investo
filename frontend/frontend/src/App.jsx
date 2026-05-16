@@ -3,7 +3,7 @@ import LandingPage from "./pages/LandingPage";
 import FeaturePortfolio from "./pages/FeaturePortfolio";
 import FeatureExpenses from "./pages/FeatureExpenses";
 import FeatureMarket from "./pages/FeatureMarket";
-import FeatureCommunity from "./pages/FeatureCommunity";
+import FeatureNews from "./pages/FeatureNews";
 import About from "./pages/About";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
@@ -24,23 +24,45 @@ import ReminderCalendar from "./pages/ReminderCalendar";
 import NewsPortal from "./pages/NewsPortal";
 import Stockcharts from "./pages/Stockcharts";
 import { NotificationProvider } from "./context/NotificationContext";
+import { PortfolioProvider } from "./context/PortfolioContext";
+import GlossaryWidget from "./components/GlossaryWidget";
 import { Toaster } from "react-hot-toast";
 import Admin from "./pages/admin";
 import Settings from "./pages/Settings";
 import Community from "./pages/Community";
 
+const toasterOptions = {
+  position: "top-right",
+  gutter: 12,
+  toastOptions: {
+    duration: 4000,
+    style: {
+      borderRadius: "14px",
+      background: "var(--card-bg)",
+      color: "var(--text-main)",
+      border: "1px solid var(--card-border)",
+      backdropFilter: "blur(12px)",
+      boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
+      fontSize: "14px",
+      fontWeight: 600,
+    },
+  },
+};
+
 export default function App() {
   return (
     <BrowserRouter>
       <NotificationProvider>
-        <Toaster position="top-right" />
+        <PortfolioProvider>
+        <Toaster {...toasterOptions} />
+        <GlossaryWidget />
         <Routes>
           {/* Landing & Content Pages */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/features/portfolio" element={<FeaturePortfolio />} />
           <Route path="/features/expenses" element={<FeatureExpenses />} />
           <Route path="/features/market" element={<FeatureMarket />} />
-          <Route path="/features/community" element={<FeatureCommunity />} />
+          <Route path="/features/news" element={<FeatureNews />} />
           <Route path="/about" element={<About />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
@@ -80,6 +102,7 @@ export default function App() {
           {/* 404 */}
           <Route path="*" element={<div style={{ padding: "20px", color: "#fff" }}>404 - Page Not Found</div>} />
         </Routes>
+        </PortfolioProvider>
       </NotificationProvider>
     </BrowserRouter>
   );

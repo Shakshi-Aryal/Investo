@@ -3,8 +3,8 @@ Notification service — the central hub for creating and dispatching notificati
 Handles database persistence, WebSocket broadcast, and optional email delivery.
 """
 import logging
-from django.core.mail import send_mail
 from django.conf import settings
+from .email_providers import send_transactional_email
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from datetime import datetime
@@ -73,16 +73,40 @@ def create_notification(user, notification_type, title, message, metadata=None, 
     # 4. Send email if requested
     if send_email and user.email:
         try:
-            send_mail(
+            html_message = f"""
+            <html>
+                <body style="font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 40px 0;">
+                    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                        <div style="background-color: #BA7517; padding: 24px; text-align: center;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 1px;">INVESTO</h1>
+                        </div>
+                        <div style="padding: 40px 32px;">
+                            <h2 style="color: #333333; margin-top: 0; font-size: 20px;">{title}</h2>
+                            <p style="color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">Hi {user.first_name or user.username},</p>
+                            <p style="color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 32px; padding: 16px; background-color: #f9f9f9; border-left: 4px solid #BA7517; border-radius: 4px;">
+                                {message}
+                            </p>
+                            <a href="{settings.FRONTEND_URL if hasattr(settings, 'FRONTEND_URL') else 'http://localhost:5173'}/dashboard" style="display: inline-block; background-color: #BA7517; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; font-size: 14px;">Go to Dashboard</a>
+                        </div>
+                        <div style="background-color: #f9f9f9; padding: 24px; text-align: center; border-top: 1px solid #eeeeee;">
+                            <p style="color: #999999; font-size: 12px; margin: 0;">&copy; {datetime.now().year} Investo Ecosystem. All rights reserved.</p>
+                            <p style="color: #999999; font-size: 12px; margin: 8px 0 0;">You received this because you opted into important alerts.</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+            """
+            
+            sent = send_transactional_email(
+                to_email=user.email,
                 subject=f"Investo: {title}",
-                message=f"Hi {user.first_name or user.username},\n\n{message}\n\nBest,\nInvesto Team",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True,
+                plain_body=f"Hi {user.first_name or user.username},\n\n{message}\n\nBest,\nInvesto Team",
+                html_body=html_message,
             )
-            notification.is_email_sent = True
-            notification.save(update_fields=['is_email_sent'])
-            logger.info(f"[NOTIF] Email sent to {user.email}: {title}")
+            if sent:
+                notification.is_email_sent = True
+                notification.save(update_fields=['is_email_sent'])
+                logger.info(f"[NOTIF] Email sent to {user.email}: {title}")
         except Exception as e:
             logger.error(f"[NOTIF] Email failed for {user.email}: {e}")
 

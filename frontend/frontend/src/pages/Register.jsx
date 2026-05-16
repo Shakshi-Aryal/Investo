@@ -5,6 +5,7 @@ import { LogIn, Eye, EyeOff, Shield, UserPlus, CheckCircle } from "lucide-react"
 import Darklogo from "../assets/Darklogo.png";
 import Lightlogo from "../assets/Lightlogo.png";
 import googlelogo from "../assets/googlelogo.png";
+import { apiUrl } from "../config";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -65,7 +66,7 @@ export default function Register() {
     delete payload.confirmPassword;
 
     try {
-      const response = await fetch("http://localhost:8000/api/register/", {
+      const response = await fetch(apiUrl("/register/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -89,7 +90,7 @@ export default function Register() {
     onSuccess: async (tokenResponse) => {
       setLoading(true);
       try {
-        const response = await fetch("http://localhost:8000/api/google-login/", {
+        const response = await fetch(apiUrl("/google-login/"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code: tokenResponse.code }),

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,7 +16,9 @@ import {
 } from "chart.js";
 ChartJS.register(CategoryScale, LinearScale, ArcElement, BarElement, PointElement, LineElement, Title, CJSTooltip, CJSLegend);
 
-const API_URL = "http://127.0.0.1:8000/api/expenses/";
+import { apiUrl } from "../config";
+
+const API_URL = apiUrl("/expenses/");
 
 /* ── Category config ─────────────────────────────────────────── */
 const CATEGORY_META = {
@@ -101,7 +103,7 @@ export default function ExpenseTracker() {
     try {
       const res = await fetch(API_URL, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) setHistory((await res.json()).reverse());
-    } catch (err) { console.error(err); }
+    } catch { /* silent */ }
   };
 
   useEffect(() => { fetchExpenses(); }, []);
@@ -128,7 +130,7 @@ export default function ExpenseTracker() {
         body: JSON.stringify({ amount: parsed, type, category, description }),
       });
       if (res.ok) { setAmount(""); setDescription(""); setAmountError(""); fetchExpenses(); }
-    } catch (err) { console.error(err); }
+    } catch { /* silent */ }
     finally { setSubmitting(false); }
   };
 
@@ -143,7 +145,7 @@ export default function ExpenseTracker() {
       await fetch(`${API_URL}${itemToDelete.id}/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       setItemToDelete(null);
       fetchExpenses();
-    } catch (err) { console.error(err); }
+    } catch { /* silent */ }
   };
 
   const cancelDelete = () => {
@@ -209,8 +211,8 @@ export default function ExpenseTracker() {
         variants={containerVariants} initial="hidden" animate="show"
       >
         <motion.div className="page-header" variants={cardVariants}>
-          <h1>Wealth <span className="heading-gradient">Tracker</span></h1>
-          <p>Monitor cash flow, analyze spending funnels, and track savings</p>
+          <h1>Cash Flow <span className="heading-gradient">Ledger</span></h1>
+          <p>Income, expenses, and spending funnel analytics</p>
         </motion.div>
 
         {/* ── HERO METRICS ───────────────────────────────────── */}

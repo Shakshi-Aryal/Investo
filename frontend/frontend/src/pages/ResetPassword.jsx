@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NormalButton from "../components/NormalButton";
 import InputField from "../components/InputField";
+import { apiUrl } from "../config";
 
 function ResetPassword() {
   const navigate = useNavigate();
@@ -31,10 +32,9 @@ function ResetPassword() {
        * FIX: Added /api/ prefix. 
        * Your main urls.py uses: path('api/', include('accounts.urls'))
        * Your accounts urls.py uses: path('reset-password/<uidb64>/<token>/', ...)
-       * Resulting URL: http://localhost:8000/api/reset-password/...
-       */
+      */
       const response = await fetch(
-        `http://localhost:8000/api/reset-password/${uidb64}/${token}/`,
+        apiUrl(`/reset-password/${uidb64}/${token}/`),
         {
           method: "POST",
           headers: { 

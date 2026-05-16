@@ -6,7 +6,9 @@ import {
 import { AlertCircle, Ban, Server, Users, Activity, ShieldAlert, ArrowUpRight } from "lucide-react";
 import MainLayout from "../layouts/MainLayout";
 
-const API_URL = "http://localhost:8000/api/";
+import { API_BASE } from "../config";
+
+const API_URL = `${API_BASE}/`;
 
 // Mock data for graphs
 const revenueData = [

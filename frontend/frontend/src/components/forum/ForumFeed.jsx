@@ -5,7 +5,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import PostCard from "./PostCard";
 
-const API = "http://localhost:8000/api/community";
+import { apiUrl } from "../../config";
+
+const API = apiUrl("/community");
 
 export default function ForumFeed({
   category, sort, search, token, onSelectPost, bookmarksOnly,

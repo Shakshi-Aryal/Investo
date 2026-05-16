@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { apiUrl } from "../config";
 
 function VerifyEmail() {
   const { uid, token } = useParams(); // from route /verify-email/:uid/:token
@@ -9,7 +10,7 @@ function VerifyEmail() {
   useEffect(() => {
     const verify = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/verify-email/${uid}/${token}/`, {
+        const response = await fetch(apiUrl(`/verify-email/${uid}/${token}/`), {
           method: "GET",
         });
 

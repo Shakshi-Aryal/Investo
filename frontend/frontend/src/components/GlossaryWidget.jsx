@@ -1,190 +1,343 @@
-import React, { useState, useRef, useEffect } from "react";
-import Draggable from "react-draggable";
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { BookOpen, GripVertical, X, Search } from 'lucide-react';
+
+const STORAGE_KEY = 'investo-glossary-pos';
+const FAB_SIZE = 56;
+const PANEL_W = 300;
+const PANEL_H = 380;
+const MARGIN = 12;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+/** Visible viewport — accounts for mobile browser chrome via visualViewport when available. */
+function getViewportSize() {
+  if (typeof window === 'undefined') {
+    return { width: 360, height: 640 };
+  }
+  const vv = window.visualViewport;
+  return {
+    width: vv?.width ?? window.innerWidth,
+    height: vv?.height ?? window.innerHeight,
+    offsetLeft: vv?.offsetLeft ?? 0,
+    offsetTop: vv?.offsetTop ?? 0,
+  };
+}
+
+function loadPosition() {
+  if (typeof window === 'undefined') {
+    return { x: 24, y: 24 };
+  }
+  const { width, height } = getViewportSize();
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const { x, y } = JSON.parse(saved);
+      return {
+        x: clamp(x, MARGIN, width - FAB_SIZE - MARGIN),
+        y: clamp(y, MARGIN, height - FAB_SIZE - MARGIN),
+      };
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return {
+    x: width - FAB_SIZE - 24,
+    y: height - FAB_SIZE - 100,
+  };
+}
+
+function clampPosition(pos, open) {
+  const { width, height } = getViewportSize();
+  const w = open ? PANEL_W : FAB_SIZE;
+  const h = open ? PANEL_H : FAB_SIZE;
+  return {
+    x: clamp(pos.x, MARGIN, Math.max(MARGIN, width - w - MARGIN)),
+    y: clamp(pos.y, MARGIN, Math.max(MARGIN, height - h - MARGIN)),
+  };
+}
 
 export default function GlossaryWidget() {
   const [open, setOpen] = useState(false);
-  const [word, setWord] = useState("");
+  const [word, setWord] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const nodeRef = useRef(null);
+  const [error, setError] = useState('');
+  const [position, setPosition] = useState(loadPosition);
+  const [dragging, setDragging] = useState(false);
 
-  // ── THEME SYNC ──
-  // Reads from the same 'theme' key used in Login/Profile
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const rootRef = useRef(null);
+  const dragOffset = useRef({ x: 0, y: 0 });
 
-  // Listen for storage changes (if user toggles theme in another tab/component)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const saved = localStorage.getItem("theme");
-      if (saved !== null) setIsDarkMode(JSON.parse(saved));
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+  const persistPosition = useCallback((pos) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
+    } catch {
+      /* quota / private mode */
+    }
   }, []);
 
-  // ── POSITION PERSISTENCE ──
-  const [position, setPosition] = useState(() => {
-    const saved = localStorage.getItem("glossary-pos");
-    return saved ? JSON.parse(saved) : { x: 30, y: 30 };
-  });
-
-  const handleStop = (e, data) => {
-    const newPos = { x: data.x, y: data.y };
-    setPosition(newPos);
-    localStorage.setItem("glossary-pos", JSON.stringify(newPos));
-  };
-
-  // Close on outside click
   useEffect(() => {
+    const onResize = () => setPosition((p) => clampPosition(p, open));
+    window.addEventListener('resize', onResize);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', onResize);
+    vv?.addEventListener('scroll', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      vv?.removeEventListener('resize', onResize);
+      vv?.removeEventListener('scroll', onResize);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    setPosition((p) => clampPosition(p, open));
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const handleClick = (e) => {
-      if (open && nodeRef.current && !nodeRef.current.contains(e.target)) {
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
+
+  const onPointerDown = (e) => {
+    if (!e.target.closest('.glossary-drag-handle')) return;
+    e.preventDefault();
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setDragging(true);
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    const onMove = (e) => {
+      const { width, height } = getViewportSize();
+      const w = open ? PANEL_W : FAB_SIZE;
+      const h = open ? PANEL_H : FAB_SIZE;
+      const x = clamp(e.clientX - dragOffset.current.x, MARGIN, width - w - MARGIN);
+      const y = clamp(e.clientY - dragOffset.current.y, MARGIN, height - h - MARGIN);
+      setPosition({ x, y });
+    };
+
+    const onUp = () => {
+      setDragging(false);
+      setPosition((p) => {
+        const clamped = clampPosition(p, open);
+        persistPosition(clamped);
+        return clamped;
+      });
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [dragging, open, persistPosition]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!word.trim()) return;
     setLoading(true);
     setResults(null);
-    setError("");
-
+    setError('');
     try {
-      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-      if (!response.ok) throw new Error("Not found");
+      const response = await fetch(
+        `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.trim())}`,
+      );
+      if (!response.ok) throw new Error('Not found');
       const data = await response.json();
-      setResults(data[0]);
-    } catch (err) {
-      setError("Term not found.");
+      setResults(data[0] ?? null);
+    } catch {
+      setError('Term not found. Try another word.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ── CSS CONSTANTS ──
-  const themeStyles = isDarkMode ? {
-    accent: "#D90A14",
-    bg: "rgba(20, 5, 5, 0.85)",
-    border: "rgba(217, 10, 20, 0.2)",
-    text: "#ffffff",
-    input: "rgba(0, 0, 0, 0.3)",
-    muted: "#9a7a7c"
-  } : {
-    accent: "#BA7517",
-    bg: "rgba(255, 250, 240, 0.85)",
-    border: "rgba(186, 117, 23, 0.2)",
-    text: "#1a1208",
-    input: "#ffffff",
-    muted: "#8a6a3a"
-  };
+  const widgetW = open ? PANEL_W : FAB_SIZE;
+  const widgetH = open ? PANEL_H : FAB_SIZE;
 
   return (
-    <Draggable nodeRef={nodeRef} position={position} onStop={handleStop} handle=".drag-handle">
-      <div 
-        ref={nodeRef} 
-        className="fixed z-[9999]"
-        style={{ 
-          fontFamily: "'DM Sans', sans-serif",
-          color: themeStyles.text 
+    <>
+      <style>{`
+        .glossary-fab {
+          position: fixed;
+          z-index: 9998;
+          touch-action: none;
+          user-select: none;
+        }
+        .glossary-glass {
+          background: var(--card-bg);
+          border: 1px solid var(--card-border);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          box-shadow: 0 16px 48px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .glossary-drag-handle { cursor: grab; touch-action: none; }
+        .glossary-drag-handle:active { cursor: grabbing; }
+        @keyframes glossaryIn {
+          from { opacity: 0; transform: scale(0.92); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
+
+      <div
+        ref={rootRef}
+        className="glossary-fab"
+        style={{
+          left: position.x,
+          top: position.y,
+          width: widgetW,
+          height: widgetH,
+          transition: dragging ? 'none' : 'width 0.25s ease, height 0.25s ease',
         }}
+        onPointerDown={onPointerDown}
       >
         {!open ? (
-          <div
+          <button
+            type="button"
+            className="glossary-glass glossary-drag-handle"
             onClick={() => setOpen(true)}
-            className="drag-handle w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl cursor-grab active:cursor-grabbing hover:scale-110 transition-all duration-300"
-            style={{ 
-              background: `linear-gradient(135deg, ${themeStyles.accent}, #ff6b72)`,
-              border: `2px solid rgba(255,255,255,0.1)`
+            aria-label="Open financial glossary"
+            style={{
+              width: FAB_SIZE,
+              height: FAB_SIZE,
+              borderRadius: 18,
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent)',
+              cursor: 'grab',
             }}
           >
-            <span className="text-white text-xl">📖</span>
-          </div>
+            <BookOpen size={24} />
+          </button>
         ) : (
-          <div 
-            className="w-80 rounded-3xl p-5 shadow-2xl backdrop-blur-xl border"
-            style={{ 
-              backgroundColor: themeStyles.bg,
-              borderColor: themeStyles.border,
-              animation: 'widgetPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          <div
+            className="glossary-glass"
+            style={{
+              width: PANEL_W,
+              height: PANEL_H,
+              borderRadius: 20,
+              padding: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              animation: 'glossaryIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
-            {/* Header / Drag Area */}
-            <div className="drag-handle flex justify-between items-center mb-4 cursor-move">
-              <h3 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: '14px', letterSpacing: '1px', color: themeStyles.accent }}>
-                INVESTO GLOSSARY
-              </h3>
-              <button onClick={() => setOpen(false)} className="opacity-50 hover:opacity-100 transition-opacity">✕</button>
+            <div
+              className="glossary-drag-handle"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12,
+                paddingBottom: 10,
+                borderBottom: '1px solid var(--divider)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <GripVertical size={16} color="var(--text-muted)" />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-heading)',
+                    fontWeight: 800,
+                    fontSize: 12,
+                    letterSpacing: 0.6,
+                    color: 'var(--accent)',
+                  }}
+                >
+                  DRAGGABLE FINANCIAL GLOSSARY
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close glossary"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: 4,
+                }}
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            {/* Search Input */}
-            <form onSubmit={handleSearch} className="relative flex items-center">
+            <form onSubmit={handleSearch} style={{ position: 'relative', marginBottom: 12 }}>
+              <Search
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-muted)',
+                }}
+              />
               <input
+                className="inv-input"
                 type="text"
                 value={word}
                 onChange={(e) => setWord(e.target.value)}
-                placeholder="Financial term..."
-                className="w-full p-3 pr-12 rounded-xl outline-none border transition-all text-sm"
-                style={{ 
-                  backgroundColor: themeStyles.input,
-                  borderColor: themeStyles.border,
-                  color: themeStyles.text
-                }}
+                placeholder="e.g. liquidity, beta, NAV…"
+                style={{ paddingLeft: 36, fontSize: 13 }}
               />
-              <button 
-                type="submit" 
-                className="absolute right-2 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-transform active:scale-95"
-                style={{ backgroundColor: themeStyles.accent }}
-              >
-                GO
-              </button>
             </form>
 
-            {/* Content Area */}
-            <div className="mt-4 max-h-64 overflow-y-auto pr-2 custom-scroll">
-              {loading && <div className="text-center py-4 opacity-50 text-xs">Decoding market data...</div>}
-              {error && <div className="text-center py-4 text-xs" style={{ color: themeStyles.accent }}>{error}</div>}
-              
+            <div style={{ flex: 1, overflowY: 'auto', fontSize: 13, color: 'var(--text-main)' }}>
+              {loading && (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: 16 }}>Looking up…</p>
+              )}
+              {error && (
+                <p style={{ textAlign: 'center', color: 'var(--danger-color)', margin: 16 }}>{error}</p>
+              )}
               {results && (
-                <div className="fade-in">
-                  <h4 className="text-lg font-bold capitalize mb-1" style={{ fontFamily: 'Syne' }}>{results.word}</h4>
-                  {results.meanings.map((m, i) => (
-                    <div key={i} className="mb-4">
-                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md" 
-                        style={{ backgroundColor: `${themeStyles.accent}20`, color: themeStyles.accent }}>
+                <div>
+                  <h4
+                    style={{
+                      margin: '0 0 8px',
+                      fontFamily: 'var(--font-heading)',
+                      textTransform: 'capitalize',
+                      fontSize: 18,
+                    }}
+                  >
+                    {results.word}
+                  </h4>
+                  {results.meanings?.slice(0, 2).map((m, i) => (
+                    <div key={i} style={{ marginBottom: 12 }}>
+                      <span className="micro-badge micro-badge-accent" style={{ fontSize: 10 }}>
                         {m.partOfSpeech}
                       </span>
-                      <p className="text-xs mt-2 leading-relaxed opacity-90">{m.definitions[0].definition}</p>
-                      {m.definitions[0].example && (
-                        <p className="text-[11px] mt-1 italic border-left pl-2 opacity-60" style={{ borderLeft: `2px solid ${themeStyles.border}` }}>
-                          "{m.definitions[0].example}"
-                        </p>
-                      )}
+                      <p style={{ margin: '8px 0 0', lineHeight: 1.55, color: 'var(--text-muted)' }}>
+                        {m.definitions?.[0]?.definition}
+                      </p>
                     </div>
                   ))}
                 </div>
               )}
+              {!loading && !error && !results && (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: 24, lineHeight: 1.5 }}>
+                  Drag anywhere on screen. Search financial terms instantly.
+                </p>
+              )}
             </div>
           </div>
         )}
-
-        <style>{`
-          @keyframes widgetPop {
-            from { opacity: 0; transform: scale(0.9) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-          }
-          .custom-scroll::-webkit-scrollbar { width: 4px; }
-          .custom-scroll::-webkit-scrollbar-thumb { background: ${themeStyles.border}; border-radius: 10px; }
-          .fade-in { animation: fadeIn 0.4s ease; }
-          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        `}</style>
       </div>
-    </Draggable>
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { wsUrl } from "../config";
 
 /**
  * useMarketWebSocket
@@ -45,22 +46,18 @@ export default function useMarketWebSocket(symbol = null) {
       wsRef.current = null;
     }
 
-    const url = symbol
-      ? `ws://localhost:8000/ws/market/${symbol}/`
-      : `ws://localhost:8000/ws/market/`;
+    const path = symbol ? `/ws/market/${symbol}/` : '/ws/market/';
 
     let ws;
     try {
-      ws = new WebSocket(url);
-    } catch (e) {
-      console.error("[MarketWS] Failed to create socket:", e);
+      ws = new WebSocket(wsUrl(path));
+    } catch {
       return;
     }
 
     ws.onopen = () => {
       if (destroyedRef.current) { ws.close(1000); return; }
       setIsConnected(true);
-      console.log(`[MarketWS] Connected → ${symbol || 'Global Market'}`);
     };
 
     ws.onmessage = (event) => {

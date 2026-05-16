@@ -5,7 +5,9 @@
 import React, { useState } from "react";
 import toast from "react-hot-toast";
 
-const API = "http://localhost:8000/api/community";
+import { apiUrl } from "../../config";
+
+const API = apiUrl("/community");
 
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr)) / 1000;

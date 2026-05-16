@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import { useNotifications } from '../context/NotificationContext';
 import toast from 'react-hot-toast';
+import { apiUrl } from '../config';
 
 const TYPE_ICONS = {
   alert: '🔔',
@@ -35,7 +36,7 @@ export default function Notifications() {
       const params = new URLSearchParams({ limit: '50' });
       if (filter === 'unread') params.set('unread_only', 'true');
 
-      const res = await fetch(`http://localhost:8000/api/notifications/?${params}`, {
+      const res = await fetch(`${apiUrl('/notifications/')}?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -48,8 +49,8 @@ export default function Notifications() {
         setNotifications(results);
         setUnreadCount(data.unread_count || 0);
       }
-    } catch (err) {
-      console.error('[Notifications] fetch error:', err);
+    } catch {
+      /* silent */
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ export default function Notifications() {
   const markAllRead = async () => {
     try {
       const token = getToken();
-      const res = await fetch('http://localhost:8000/api/notifications/mark-read/', {
+      const res = await fetch(apiUrl('/notifications/mark-read/'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -83,7 +84,7 @@ export default function Notifications() {
   const markOneRead = async (id) => {
     try {
       const token = getToken();
-      const res = await fetch('http://localhost:8000/api/notifications/mark-read/', {
+      const res = await fetch(apiUrl('/notifications/mark-read/'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -95,15 +96,15 @@ export default function Notifications() {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
-    } catch (err) {
-      console.error('[Notifications] mark read error:', err);
+    } catch {
+      /* silent */
     }
   };
 
   const deleteNotif = async (id) => {
     try {
       const token = getToken();
-      const res = await fetch(`http://localhost:8000/api/notifications/${id}/`, {
+      const res = await fetch(apiUrl(`/notifications/${id}/`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -133,7 +134,7 @@ export default function Notifications() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '28px', fontWeight: '800' }}>
-              Notifications
+              Alert & Notification Center
             </h1>
             <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
               {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}

@@ -7,7 +7,9 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
-const API = "http://localhost:8000/api/community";
+import { apiUrl } from "../../config";
+
+const API = apiUrl("/community");
 
 export default function CreatePostModal({ token, onClose, onCreated }) {
   const [categories, setCategories] = useState([]);

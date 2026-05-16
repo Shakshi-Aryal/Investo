@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
+import { apiUrl } from "../config";
 
 const TOKEN_KEY = "jwt";
 
@@ -80,7 +81,7 @@ function Profile() {
       try {
         const token = localStorage.getItem(TOKEN_KEY);
         if (!token) { setError("Not logged in."); setLoading(false); return; }
-        const response = await axios.get("http://127.0.0.1:8000/api/profile/", {
+        const response = await axios.get(apiUrl("/profile/"), {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUserData(response.data);
@@ -103,7 +104,7 @@ function Profile() {
     setError(""); setSuccess("");
     try {
       const token = localStorage.getItem(TOKEN_KEY);
-      const response = await axios.put("http://127.0.0.1:8000/api/profile/", userData, {
+      const response = await axios.put(apiUrl("/profile/"), userData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserData(response.data);
@@ -136,7 +137,7 @@ function Profile() {
         )}
         <h1 style={{ fontFamily: 'var(--font-heading)', textAlign: 'center', marginBottom: '30px', fontSize: '32px' }}>
 
-            Account <span className="heading-gradient">Settings</span>
+            Account <span className="heading-gradient">Profile</span>
         </h1>
 
         {error && !editing ? (
@@ -150,6 +151,12 @@ function Profile() {
             <div className="info-row"><div className="info-label">Full Name</div><div className="info-value">{userData.first_name} {userData.last_name}</div></div>
             <div className="info-row"><div className="info-label">Email</div><div className="info-value">{userData.email}</div></div>
             <div className="info-row"><div className="info-label">Date of Birth</div><div className="info-value">{userData.date_of_birth || "—"}</div></div>
+            <div className="info-row">
+              <div className="info-label">Trading Balance (NEPSE)</div>
+              <div className="info-value">
+                Rs. {parseFloat(userData.trading_balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+              </div>
+            </div>
             <button className="btn-main" onClick={() => setEditing(true)}>Modify Details</button>
           </div>
         ) : (

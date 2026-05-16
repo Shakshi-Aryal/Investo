@@ -1,25 +1,24 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import toast from "react-hot-toast";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { apiUrl, wsUrl } from '../config';
+import { showAppToast } from '../utils/notify';
 
-/**
- * useNotificationWebSocket
- * Connects to the user-specific notification WebSocket.
- * Safe against React 19 StrictMode double-invoke via a destroyed flag.
- */
 export default function useNotificationWebSocket() {
-  const [unreadCount,        setUnreadCount]        = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [latestNotification, setLatestNotification] = useState(null);
-  const [isConnected,        setIsConnected]        = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
-  const wsRef          = useRef(null);
+  const wsRef = useRef(null);
   const reconnectTimer = useRef(null);
-  const destroyedRef   = useRef(false);
+  const destroyedRef = useRef(false);
 
-  const fetchUnreadCount = useCallback(async () => {
+  const refreshUnreadCount = useCallback(async () => {
     try {
-      const token = localStorage.getItem("jwt");
-      if (!token) return;
-      const res = await fetch("http://localhost:8000/api/notifications/unread-count/", {
+      const token = localStorage.getItem('jwt');
+      if (!token) {
+        setUnreadCount(0);
+        return;
+      }
+      const res = await fetch(apiUrl('/notifications/unread-count/'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -36,10 +35,10 @@ export default function useNotificationWebSocket() {
       reconnectTimer.current = null;
     }
     if (wsRef.current) {
-      wsRef.current.onopen    = null;
+      wsRef.current.onopen = null;
       wsRef.current.onmessage = null;
-      wsRef.current.onclose   = null;
-      wsRef.current.onerror   = null;
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
       wsRef.current.close(1000);
       wsRef.current = null;
     }
@@ -49,45 +48,49 @@ export default function useNotificationWebSocket() {
   const connect = useCallback(() => {
     if (destroyedRef.current) return;
 
-    const token = localStorage.getItem("jwt");
-    if (!token) return; // not logged in — skip silently
+    const token = localStorage.getItem('jwt');
+    if (!token) return;
 
-    // Close stale socket
     if (wsRef.current) {
-      wsRef.current.onopen    = null;
+      wsRef.current.onopen = null;
       wsRef.current.onmessage = null;
-      wsRef.current.onclose   = null;
-      wsRef.current.onerror   = null;
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
       wsRef.current.close(1000);
       wsRef.current = null;
     }
 
     let ws;
     try {
-      ws = new WebSocket(`ws://localhost:8000/ws/notifications/?token=${token}`);
-    } catch (e) {
-      console.error("[NotifWS] Failed to create socket:", e);
+      ws = new WebSocket(`${wsUrl('/ws/notifications/')}?token=${token}`);
+    } catch {
       return;
     }
 
     ws.onopen = () => {
-      if (destroyedRef.current) { ws.close(1000); return; }
+      if (destroyedRef.current) {
+        ws.close(1000);
+        return;
+      }
       setIsConnected(true);
-      fetchUnreadCount();
-      console.log("[NotifWS] Connected");
+      refreshUnreadCount();
     };
 
     ws.onmessage = (event) => {
       if (destroyedRef.current) return;
       try {
         const data = JSON.parse(event.data);
-        if (data.type === "notification") {
-          setLatestNotification(data.data);
-          setUnreadCount(prev => prev + 1);
-          toast(data.data.title || "New notification", {
-            icon: "🔔",
-            style: { borderRadius: "12px", background: "#1a1a1a", color: "#fff" },
-          });
+        if (data.type === 'notification' && data.data) {
+          const n = data.data;
+          setLatestNotification(n);
+          setUnreadCount((prev) => prev + 1);
+
+          const variant =
+            n.metadata?.action === 'reversal'
+              ? 'reversal'
+              : n.metadata?.variant || 'default';
+
+          showAppToast(n.title || n.message || 'New notification', variant);
         }
       } catch (_) {}
     };
@@ -95,7 +98,6 @@ export default function useNotificationWebSocket() {
     ws.onclose = (e) => {
       if (destroyedRef.current) return;
       setIsConnected(false);
-      // 4001 = auth rejected by server — don't retry
       if (e.code !== 1000 && e.code !== 1001 && e.code !== 4001) {
         reconnectTimer.current = setTimeout(() => {
           if (!destroyedRef.current) connect();
@@ -103,18 +105,35 @@ export default function useNotificationWebSocket() {
       }
     };
 
-    ws.onerror = () => {
-      // onclose fires right after — suppress noise
-    };
+    ws.onerror = () => {};
 
     wsRef.current = ws;
-  }, [fetchUnreadCount]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshUnreadCount]);
 
   useEffect(() => {
     destroyedRef.current = false;
     connect();
-    return cleanup;
+
+    const onStorage = (e) => {
+      if (e.key === 'jwt') {
+        cleanup();
+        destroyedRef.current = false;
+        connect();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      cleanup();
+    };
   }, [connect, cleanup]);
 
-  return { unreadCount, setUnreadCount, latestNotification, isConnected };
+  return {
+    unreadCount,
+    setUnreadCount,
+    latestNotification,
+    isConnected,
+    refreshUnreadCount,
+  };
 }

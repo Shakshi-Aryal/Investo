@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
@@ -39,7 +41,7 @@ def create_usage_log(user):
         log.save()
 
     except Exception as e:
-        print("Daily usage log error:", str(e))
+        logging.getLogger(__name__).warning('Daily usage log error: %s', e)
 
 
 def generate_unique_username(email):
@@ -503,7 +505,7 @@ def google_login(request):
 
     except requests.RequestException as e:
 
-        print("Google API Error:", str(e))
+        logging.getLogger(__name__).warning('Google API error: %s', e)
 
         return Response(
             {
@@ -516,7 +518,7 @@ def google_login(request):
 
     except Exception as e:
 
-        print("GOOGLE LOGIN ERROR:", str(e))
+        logging.getLogger(__name__).warning('Google login error: %s', e)
 
         return Response(
             {

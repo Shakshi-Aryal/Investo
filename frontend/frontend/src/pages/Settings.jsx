@@ -36,7 +36,7 @@ export default function Settings() {
   return (
     <div style={{ maxWidth: "800px", margin: "40px auto", padding: "20px" }}>
       <h1 style={{ fontFamily: "var(--font-heading)", fontSize: "28px", fontWeight: 800 }}>
-        Settings
+        Platform Settings
       </h1>
       <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
         <button

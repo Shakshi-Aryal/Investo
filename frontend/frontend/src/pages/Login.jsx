@@ -6,6 +6,8 @@ import Darklogo from "../assets/Darklogo.png";
 import Lightlogo from "../assets/Lightlogo.png";
 import googlelogo from "../assets/googlelogo.png";
 
+import { apiUrl } from "../config";
+
 const TOKEN_KEY = "jwt";
 
 export default function Login() {
@@ -35,9 +37,9 @@ export default function Login() {
     setMessage("");
     setLoading(true);
     
-    const endpoint = isAdminMode 
-      ? "http://localhost:8000/api/admin-portal/login/" 
-      : "http://localhost:8000/api/login/";
+    const endpoint = isAdminMode
+      ? apiUrl("/admin-portal/login/")
+      : apiUrl("/login/");
 
     try {
       const response = await fetch(endpoint, {
@@ -71,7 +73,7 @@ export default function Login() {
     onSuccess: async (tokenResponse) => {
       setLoading(true);
       try {
-        const response = await fetch("http://localhost:8000/api/google-login/", {
+        const response = await fetch(apiUrl("/google-login/"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code: tokenResponse.code }),
